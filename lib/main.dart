@@ -11,7 +11,7 @@ class Leaderboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'FRC Leaderboard',
+      title: 'IRH Leaderboard',
       theme: ThemeData(
         primarySwatch: Colors.indigo,
       ),
