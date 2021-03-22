@@ -1,13 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:frc_leaderboard/services/database.dart';
 
 class LeaderboardPage extends StatefulWidget {
-  LeaderboardPage({Key key}) : super(key: key);
+  final Database db;
+
+  LeaderboardPage({Key key, this.db}) : super(key: key);
 
   @override
   _LeaderboardPageState createState() => _LeaderboardPageState();
 }
 
 class _LeaderboardPageState extends State<LeaderboardPage> {
+  var _scores = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    widget.db.getScoreDocs().then((querySnapshot) {
+      var scores = [];
+      for (var doc in querySnapshot.docs) {
+        int team = int.parse(doc.id);
+        double galactic_search = doc.data()['galactic_search'];
+        double auto_nav = doc.data()['auto_nav'];
+        double hyperdrive = doc.data()['hyperdrive'];
+        double interstellar = doc.data()['interstellar'];
+        double powerport = doc.data()['powerport'];
+
+        scores.add({
+          'team': team,
+          'galactic_search': galactic_search,
+          'auto_nav': auto_nav,
+          'hyperdrive': hyperdrive,
+          'interstellar': interstellar,
+          'powerport': powerport
+        });
+      }
+      setState(() {
+        _isLoading = false;
+        _scores = scores;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -16,15 +52,44 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       ),
       body: Stack(
         children: [
+          showLoading(),
           buildTable(),
         ],
       ),
     );
   }
 
+  Widget showLoading() {
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    return Container(
+      height: 0.0,
+      width: 0.0,
+    );
+  }
+
+  List<DataRow> getDataRows() {
+    List<DataRow> rows = [];
+    for (var score in _scores) {
+      rows.add(DataRow(cells: <DataCell>[
+        DataCell(Text('?')),
+        DataCell(Text(score['team'].toString())),
+        DataCell(Text(score['galactic_search'].toString())),
+        DataCell(Text(score['auto_nav'].toString())),
+        DataCell(Text(score['hyperdrive'].toString())),
+        DataCell(Text(score['interstellar'].toString())),
+        DataCell(Text(score['powerport'].toString())),
+      ]));
+    }
+    return rows;
+  }
+
   Widget buildTable() {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.only(top: 24.0),
       child: ListView(
         children: [
           Container(
@@ -39,74 +104,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 DataColumn(label: Text('Hyperdrive')),
                 DataColumn(label: Text('Interstellar Accuracy')),
                 DataColumn(label: Text('Power Port')),
-              ], rows: <DataRow>[
-                DataRow(
-                  cells: <DataCell>[
-                    DataCell(Text('1')),
-                    DataCell(Text('3015')),
-                    DataCell(Text('8.7')),
-                    DataCell(Text('24.6')),
-                    DataCell(Text('31.5')),
-                    DataCell(Text('45')),
-                    DataCell(Text('75')),
-                  ],
-                ),
-                DataRow(
-                  cells: <DataCell>[
-                    DataCell(Text('2')),
-                    DataCell(Text('254')),
-                    DataCell(Text('21.8')),
-                    DataCell(Text('63.7')),
-                    DataCell(Text('52.9')),
-                    DataCell(Text('22')),
-                    DataCell(Text('31')),
-                  ],
-                ),
-                DataRow(
-                  cells: <DataCell>[
-                    DataCell(Text('3')),
-                    DataCell(Text('148')),
-                    DataCell(Text('30.1')),
-                    DataCell(Text('72.7')),
-                    DataCell(Text('48.4')),
-                    DataCell(Text('27')),
-                    DataCell(Text('33')),
-                  ],
-                ),
-                DataRow(
-                  cells: <DataCell>[
-                    DataCell(Text('3')),
-                    DataCell(Text('148')),
-                    DataCell(Text('30.1')),
-                    DataCell(Text('72.7')),
-                    DataCell(Text('48.4')),
-                    DataCell(Text('27')),
-                    DataCell(Text('33')),
-                  ],
-                ),
-                DataRow(
-                  cells: <DataCell>[
-                    DataCell(Text('3')),
-                    DataCell(Text('148')),
-                    DataCell(Text('30.1')),
-                    DataCell(Text('72.7')),
-                    DataCell(Text('48.4')),
-                    DataCell(Text('27')),
-                    DataCell(Text('33')),
-                  ],
-                ),
-                DataRow(
-                  cells: <DataCell>[
-                    DataCell(Text('3')),
-                    DataCell(Text('148')),
-                    DataCell(Text('30.1')),
-                    DataCell(Text('72.7')),
-                    DataCell(Text('48.4')),
-                    DataCell(Text('27')),
-                    DataCell(Text('33')),
-                  ],
-                ),
-              ]),
+              ], rows: getDataRows()),
             ),
           )
         ],

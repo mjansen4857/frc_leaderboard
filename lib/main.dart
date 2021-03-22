@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frc_leaderboard/pages/leaderboard_page.dart';
+import 'package:frc_leaderboard/services/database.dart';
 
 void main() {
   runApp(Leaderboard());
@@ -14,7 +15,9 @@ class Leaderboard extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.indigo,
       ),
-      home: LeaderboardPage(),
+      home: LeaderboardPage(
+        db: Database(),
+      ),
     );
   }
 }
