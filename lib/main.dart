@@ -14,7 +14,12 @@ class Leaderboard extends StatelessWidget {
       title: 'IRH Leaderboard',
       theme: ThemeData(
         primarySwatch: Colors.indigo,
+        brightness: Brightness.light,
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+      ),
+      themeMode: ThemeMode.system,
       home: LeaderboardPage(
         db: Database(),
       ),

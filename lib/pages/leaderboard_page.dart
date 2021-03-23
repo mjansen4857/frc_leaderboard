@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:frc_leaderboard/services/database.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LeaderboardPage extends StatefulWidget {
   final Database db;
@@ -25,8 +27,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   void initState() {
     super.initState();
 
-    widget.db.getScoreDocs().then((querySnapshot) {
+    widget.db.getScoreDocs().then((querySnapshot) async {
       var scores = [];
+      QuerySnapshot vidSnapshot = await widget.db.getVideoDocs();
       for (var doc in querySnapshot.docs) {
         int team = int.parse(doc.id);
         int rank = doc.data()['rank'];
@@ -43,6 +46,26 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         double powerport = doc.data()['powerport'];
         if (powerport > _bestPower && powerport != 0) _bestPower = powerport;
 
+        var revealVid;
+        var galacticVid;
+        var autoNavVid;
+        var hyperdriveVid;
+        var interstellarVid;
+        var powerportVid;
+
+        for (var vidDoc in vidSnapshot.docs) {
+          if (int.parse(vidDoc.id) == team) {
+            revealVid = vidDoc.data()['reveal'];
+            galacticVid = vidDoc.data()['galactic_search'];
+            autoNavVid = vidDoc.data()['auto_nav'];
+            hyperdriveVid = vidDoc.data()['hyperdrive'];
+            interstellarVid = vidDoc.data()['interstellar'];
+            powerportVid = vidDoc.data()['powerport'];
+
+            break;
+          }
+        }
+
         scores.add({
           'team': team,
           'rank': rank,
@@ -50,7 +73,13 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           'auto_nav': auto_nav,
           'hyperdrive': hyperdrive,
           'interstellar': interstellar,
-          'powerport': powerport
+          'powerport': powerport,
+          'reveal_vid': revealVid,
+          'galactic_search_vid': galacticVid,
+          'auto_nav_vid': autoNavVid,
+          'hyperdrive_vid': hyperdriveVid,
+          'interstellar_vid': interstellarVid,
+          'powerport_vid': powerportVid
         });
       }
       scores.sort((a, b) => a['rank'].compareTo(b['rank']));
@@ -65,7 +94,20 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Recharge at Home Global Leaderboard"),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Image(
+                image: AssetImage('images/logo.png'),
+                width: 60,
+              ),
+            ),
+            Text('Infinite Recharge at Home Global Leaderboard'),
+          ],
+        ),
+        backgroundColor: Colors.indigo,
       ),
       body: Stack(
         children: [
@@ -90,7 +132,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   Widget showLoading() {
     if (_isLoading) {
       return Center(
-        child: CircularProgressIndicator(),
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.indigo),
+        ),
       );
     }
     return Container(
@@ -102,19 +146,91 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   List<DataRow> getDataRows() {
     List<DataRow> rows = [];
     for (var score in _scores) {
+      var galacticText = Text(score['galactic_search'].toString() +
+          (score['galactic_search'] == _bestGalactic ? ' ⭐' : ''));
+      var autoNavText = Text(score['auto_nav'].toString() +
+          (score['auto_nav'] == _bestAuto ? ' ⭐' : ''));
+      var hyperdriveText = Text(score['hyperdrive'].toString() +
+          (score['hyperdrive'] == _bestHyper ? ' ⭐' : ''));
+      var interstellarText = Text(score['interstellar'].toString() +
+          (score['interstellar'] == _bestInter ? ' ⭐' : ''));
+      var powerportText = Text(score['powerport'].toString() +
+          (score['powerport'] == _bestPower ? ' ⭐' : ''));
+
       rows.add(DataRow(cells: <DataCell>[
-        DataCell(Text(score['rank'].toString())),
-        DataCell(Text(score['team'].toString())),
-        DataCell(Text(score['galactic_search'].toString() +
-            (score['galactic_search'] == _bestGalactic ? ' ⭐' : ''))),
-        DataCell(Text(score['auto_nav'].toString() +
-            (score['auto_nav'] == _bestAuto ? ' ⭐' : ''))),
-        DataCell(Text(score['hyperdrive'].toString() +
-            (score['hyperdrive'] == _bestHyper ? ' ⭐' : ''))),
-        DataCell(Text(score['interstellar'].toString() +
-            (score['interstellar'] == _bestInter ? ' ⭐' : ''))),
-        DataCell(Text(score['powerport'].toString() +
-            (score['powerport'] == _bestPower ? ' ⭐' : ''))),
+        DataCell(Center(child: Text(score['rank'].toString()))),
+        DataCell(score['reveal_vid'] != null
+            ? Center(
+                child: TextButton(
+                  child: Text(score['team'].toString()),
+                  onPressed: () async {
+                    if (await canLaunch(score['reveal_vid'])) {
+                      await launch(score['reveal_vid']);
+                    }
+                  },
+                ),
+              )
+            : Center(child: Text(score['team'].toString()))),
+        DataCell(score['galactic_search_vid'] != null
+            ? Center(
+                child: TextButton(
+                  child: galacticText,
+                  onPressed: () async {
+                    if (await canLaunch(score['galactic_search_vid'])) {
+                      await launch(score['galactic_search_vid']);
+                    }
+                  },
+                ),
+              )
+            : Center(child: galacticText)),
+        DataCell(score['auto_nav_vid'] != null
+            ? Center(
+                child: TextButton(
+                  child: autoNavText,
+                  onPressed: () async {
+                    if (await canLaunch(score['auto_nav_vid'])) {
+                      await launch(score['auto_nav_vid']);
+                    }
+                  },
+                ),
+              )
+            : Center(child: autoNavText)),
+        DataCell(score['hyperdrive_vid'] != null
+            ? Center(
+                child: TextButton(
+                  child: hyperdriveText,
+                  onPressed: () async {
+                    if (await canLaunch(score['hyperdrive_vid'])) {
+                      await launch(score['hyperdrive_vid']);
+                    }
+                  },
+                ),
+              )
+            : Center(child: hyperdriveText)),
+        DataCell(score['interstellar_vid'] != null
+            ? Center(
+                child: TextButton(
+                  child: interstellarText,
+                  onPressed: () async {
+                    if (await canLaunch(score['interstellar_vid'])) {
+                      await launch(score['interstellar_vid']);
+                    }
+                  },
+                ),
+              )
+            : Center(child: interstellarText)),
+        DataCell(score['powerport_vid'] != null
+            ? Center(
+                child: TextButton(
+                  child: powerportText,
+                  onPressed: () async {
+                    if (await canLaunch(score['powerport_vid'])) {
+                      await launch(score['powerport_vid']);
+                    }
+                  },
+                ),
+              )
+            : Center(child: powerportText)),
       ]));
     }
     return rows;
@@ -134,7 +250,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   sortAscending: _sortAscending,
                   columns: <DataColumn>[
                     DataColumn(
-                        label: Text('Global Rank'),
+                        label: Padding(
+                          padding: const EdgeInsets.only(left: 16.0),
+                          child: Text('Global Rank'),
+                        ),
                         onSort: (columnIndex, sortAscending) {
                           setState(() {
                             _sortCol = columnIndex;
@@ -144,7 +263,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           });
                         }),
                     DataColumn(
-                        label: Text('Team Number'),
+                        label: Padding(
+                          padding: const EdgeInsets.only(left: 16.0),
+                          child: Text('Team Number'),
+                        ),
                         onSort: (columnIndex, sortAscending) {
                           setState(() {
                             _sortCol = columnIndex;
@@ -154,7 +276,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           });
                         }),
                     DataColumn(
-                        label: Text('Galactic Search'),
+                        label: Padding(
+                          padding: const EdgeInsets.only(left: 16.0),
+                          child: Text('Galactic Search'),
+                        ),
                         onSort: (columnIndex, sortAscending) {
                           setState(() {
                             _sortCol = columnIndex;
@@ -164,7 +289,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           });
                         }),
                     DataColumn(
-                        label: Text('Auto Nav'),
+                        label: Padding(
+                          padding: const EdgeInsets.only(left: 16.0),
+                          child: Text('Auto-Nav'),
+                        ),
                         onSort: (columnIndex, sortAscending) {
                           setState(() {
                             _sortCol = columnIndex;
@@ -174,7 +302,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           });
                         }),
                     DataColumn(
-                        label: Text('Hyperdrive'),
+                        label: Padding(
+                          padding: const EdgeInsets.only(left: 16.0),
+                          child: Text('Hyperdrive'),
+                        ),
                         onSort: (columnIndex, sortAscending) {
                           setState(() {
                             _sortCol = columnIndex;
@@ -184,7 +315,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           });
                         }),
                     DataColumn(
-                        label: Text('Interstellar Accuracy'),
+                        label: Padding(
+                          padding: const EdgeInsets.only(left: 16.0),
+                          child: Text('Interstellar Accuracy'),
+                        ),
                         onSort: (columnIndex, sortAscending) {
                           setState(() {
                             _sortCol = columnIndex;
@@ -194,7 +328,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           });
                         }),
                     DataColumn(
-                        label: Text('Power Port'),
+                        label: Padding(
+                          padding: const EdgeInsets.only(left: 16.0),
+                          child: Text('Power Port'),
+                        ),
                         onSort: (columnIndex, sortAscending) {
                           setState(() {
                             _sortCol = columnIndex;
