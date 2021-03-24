@@ -22,29 +22,30 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   double _bestHyper = double.infinity;
   double _bestInter = 0;
   double _bestPower = 0;
+  int _startRow = 1;
+  int _endRow = 50;
 
-  @override
-  void initState() {
-    super.initState();
-
-    widget.db.getScoreDocs().then((querySnapshot) async {
+  void getTableData(int startRank, int endRank) {
+    widget.db.getScoreDocs(startRank, endRank).then((querySnapshot) async {
       var scores = [];
       QuerySnapshot vidSnapshot = await widget.db.getVideoDocs();
+      var highScores = await widget.db.getHighScores();
+
+      _bestGalactic = highScores['galactic_search'];
+      _bestAuto = highScores['auto_nav'];
+      _bestHyper = highScores['hyperdrive'];
+      _bestInter = highScores['interstellar'];
+      _bestPower = highScores['powerport'];
+
       for (var doc in querySnapshot.docs) {
         int team = int.parse(doc.id);
         int rank = doc.data()['rank'];
         double galactic_search = doc.data()['galactic_search'];
-        if (galactic_search < _bestGalactic && galactic_search != 0)
-          _bestGalactic = galactic_search;
         double auto_nav = doc.data()['auto_nav'];
-        if (auto_nav < _bestAuto && auto_nav != 0) _bestAuto = auto_nav;
         double hyperdrive = doc.data()['hyperdrive'];
-        if (hyperdrive < _bestHyper && hyperdrive != 0) _bestHyper = hyperdrive;
         double interstellar = doc.data()['interstellar'];
-        if (interstellar > _bestInter && interstellar != 0)
-          _bestInter = interstellar;
         double powerport = doc.data()['powerport'];
-        if (powerport > _bestPower && powerport != 0) _bestPower = powerport;
+        int change = doc.data()['change'];
 
         var revealVid;
         var galacticVid;
@@ -69,6 +70,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         scores.add({
           'team': team,
           'rank': rank,
+          'change': change,
           'galactic_search': galactic_search,
           'auto_nav': auto_nav,
           'hyperdrive': hyperdrive,
@@ -91,6 +93,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    getTableData(1, 50);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -104,7 +112,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 width: 60,
               ),
             ),
-            Text('Infinite Recharge at Home Global Leaderboard'),
+            Text('IRH Global Leaderboard'),
           ],
         ),
         backgroundColor: Colors.indigo,
@@ -121,7 +129,33 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('⭐ = High Score'),
+              IconButton(
+                  icon: Icon(Icons.chevron_left_rounded),
+                  onPressed: _startRow == 1
+                      ? null
+                      : () {
+                          setState(() {
+                            _isLoading = true;
+                            _startRow -= 50;
+                            _endRow -= 50;
+                            _scores = [];
+                            getTableData(_startRow, _endRow);
+                          });
+                        }),
+              Text(_startRow.toString() + ' - ' + _endRow.toString()),
+              IconButton(
+                  icon: Icon(Icons.chevron_right_rounded),
+                  onPressed: _scores.length < 50
+                      ? null
+                      : () {
+                          setState(() {
+                            _isLoading = true;
+                            _startRow += 50;
+                            _endRow += 50;
+                            _scores = [];
+                            getTableData(_startRow, _endRow);
+                          });
+                        }),
             ],
           ),
         ),
@@ -143,22 +177,96 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     );
   }
 
+  Widget getScoreLabel(double score, bool isBest, bool hasLink) {
+    if (isBest) {
+      return RichText(
+        text: TextSpan(
+          style: TextStyle(color: (hasLink) ? Colors.blue : Colors.white),
+          children: [
+            WidgetSpan(
+              child: Icon(
+                Icons.star,
+                color: Colors.yellow,
+                size: 16,
+              ),
+            ),
+            TextSpan(
+              text: score.toString(),
+            ),
+          ],
+        ),
+      );
+    }
+    return Text(score.toString());
+  }
+
+  Widget getRankWidget(int rank, int change) {
+    if (change != 0) {
+      Icon changeIcon = (change > 0)
+          ? Icon(
+              Icons.keyboard_arrow_up,
+              color: Colors.green,
+              size: 16,
+            )
+          : Icon(
+              Icons.keyboard_arrow_down,
+              color: Colors.red,
+              size: 16,
+            );
+
+      return Padding(
+        padding: const EdgeInsets.only(left: 48.0),
+        child: RichText(
+          textAlign: TextAlign.start,
+          text: TextSpan(
+            style: TextStyle(color: Colors.white),
+            children: [
+              TextSpan(
+                text: rank.toString() + '  ',
+              ),
+              WidgetSpan(
+                child: changeIcon,
+              ),
+              TextSpan(
+                  text: change.abs().toString(),
+                  style: TextStyle(
+                      color: change > 0 ? Colors.green : Colors.red,
+                      fontSize: 12)),
+            ],
+          ),
+        ),
+      );
+    } else {
+      return Padding(
+        padding: const EdgeInsets.only(left: 48.0),
+        child: Text(
+          rank.toString(),
+          textAlign: TextAlign.start,
+        ),
+      );
+    }
+  }
+
   List<DataRow> getDataRows() {
     List<DataRow> rows = [];
     for (var score in _scores) {
-      var galacticText = Text(score['galactic_search'].toString() +
-          (score['galactic_search'] == _bestGalactic ? ' ⭐' : ''));
-      var autoNavText = Text(score['auto_nav'].toString() +
-          (score['auto_nav'] == _bestAuto ? ' ⭐' : ''));
-      var hyperdriveText = Text(score['hyperdrive'].toString() +
-          (score['hyperdrive'] == _bestHyper ? ' ⭐' : ''));
-      var interstellarText = Text(score['interstellar'].toString() +
-          (score['interstellar'] == _bestInter ? ' ⭐' : ''));
-      var powerportText = Text(score['powerport'].toString() +
-          (score['powerport'] == _bestPower ? ' ⭐' : ''));
+      var galacticText = getScoreLabel(
+          score['galactic_search'],
+          score['galactic_search'] == _bestGalactic,
+          score['galactic_search_vid'] != null);
+      var autoNavText = getScoreLabel(score['auto_nav'],
+          score['auto_nav'] == _bestAuto, score['auto_nav_vid'] != null);
+      var hyperdriveText = getScoreLabel(score['hyperdrive'],
+          score['hyperdrive'] == _bestHyper, score['hyperdrive_vid'] != null);
+      var interstellarText = getScoreLabel(
+          score['interstellar'],
+          score['interstellar'] == _bestInter,
+          score['interstellar_vid'] != null);
+      var powerportText = getScoreLabel(score['powerport'],
+          score['powerport'] == _bestPower, score['powerport_vid'] != null);
 
       rows.add(DataRow(cells: <DataCell>[
-        DataCell(Center(child: Text(score['rank'].toString()))),
+        DataCell(getRankWidget(score['rank'], score['change'])),
         DataCell(score['reveal_vid'] != null
             ? Center(
                 child: TextButton(
@@ -245,103 +353,144 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
             alignment: Alignment.center,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: DataTable(
-                  sortColumnIndex: _sortCol,
-                  sortAscending: _sortAscending,
-                  columns: <DataColumn>[
-                    DataColumn(
-                        label: Padding(
-                          padding: const EdgeInsets.only(left: 16.0),
-                          child: Text('Global Rank'),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      children: [
+                        RichText(
+                          text: TextSpan(
+                            style: TextStyle(color: Colors.white),
+                            children: [
+                              WidgetSpan(
+                                  child: Icon(
+                                Icons.keyboard_arrow_up,
+                                color: Colors.green,
+                                size: 16,
+                              )),
+                              TextSpan(text: '/'),
+                              WidgetSpan(
+                                  child: Icon(
+                                Icons.keyboard_arrow_down,
+                                color: Colors.red,
+                                size: 16,
+                              )),
+                              TextSpan(text: ' = Daily Change'),
+                              TextSpan(text: '      '),
+                              WidgetSpan(
+                                  child: Icon(
+                                Icons.star,
+                                color: Colors.yellow,
+                                size: 16,
+                              )),
+                              TextSpan(text: ' = High Score'),
+                            ],
+                          ),
                         ),
-                        onSort: (columnIndex, sortAscending) {
-                          setState(() {
-                            _sortCol = columnIndex;
-                            _sortAscending = sortAscending;
+                      ],
+                    ),
+                  ),
+                  DataTable(
+                      sortColumnIndex: _sortCol,
+                      sortAscending: _sortAscending,
+                      columns: <DataColumn>[
+                        DataColumn(
+                            label: Padding(
+                              padding: const EdgeInsets.only(left: 16.0),
+                              child: Text('Global Rank'),
+                            ),
+                            onSort: (columnIndex, sortAscending) {
+                              setState(() {
+                                _sortCol = columnIndex;
+                                _sortAscending = sortAscending;
 
-                            sortScores('rank');
-                          });
-                        }),
-                    DataColumn(
-                        label: Padding(
-                          padding: const EdgeInsets.only(left: 16.0),
-                          child: Text('Team Number'),
-                        ),
-                        onSort: (columnIndex, sortAscending) {
-                          setState(() {
-                            _sortCol = columnIndex;
-                            _sortAscending = sortAscending;
+                                sortScores('rank');
+                              });
+                            }),
+                        DataColumn(
+                            label: Padding(
+                              padding: const EdgeInsets.only(left: 16.0),
+                              child: Text('Team Number'),
+                            ),
+                            onSort: (columnIndex, sortAscending) {
+                              setState(() {
+                                _sortCol = columnIndex;
+                                _sortAscending = sortAscending;
 
-                            sortScores('team');
-                          });
-                        }),
-                    DataColumn(
-                        label: Padding(
-                          padding: const EdgeInsets.only(left: 16.0),
-                          child: Text('Galactic Search'),
-                        ),
-                        onSort: (columnIndex, sortAscending) {
-                          setState(() {
-                            _sortCol = columnIndex;
-                            _sortAscending = sortAscending;
+                                sortScores('team');
+                              });
+                            }),
+                        DataColumn(
+                            label: Padding(
+                              padding: const EdgeInsets.only(left: 16.0),
+                              child: Text('Galactic Search'),
+                            ),
+                            onSort: (columnIndex, sortAscending) {
+                              setState(() {
+                                _sortCol = columnIndex;
+                                _sortAscending = sortAscending;
 
-                            sortScores('galactic_search');
-                          });
-                        }),
-                    DataColumn(
-                        label: Padding(
-                          padding: const EdgeInsets.only(left: 16.0),
-                          child: Text('Auto-Nav'),
-                        ),
-                        onSort: (columnIndex, sortAscending) {
-                          setState(() {
-                            _sortCol = columnIndex;
-                            _sortAscending = sortAscending;
+                                sortScores('galactic_search');
+                              });
+                            }),
+                        DataColumn(
+                            label: Padding(
+                              padding: const EdgeInsets.only(left: 16.0),
+                              child: Text('Auto-Nav'),
+                            ),
+                            onSort: (columnIndex, sortAscending) {
+                              setState(() {
+                                _sortCol = columnIndex;
+                                _sortAscending = sortAscending;
 
-                            sortScores('auto_nav');
-                          });
-                        }),
-                    DataColumn(
-                        label: Padding(
-                          padding: const EdgeInsets.only(left: 16.0),
-                          child: Text('Hyperdrive'),
-                        ),
-                        onSort: (columnIndex, sortAscending) {
-                          setState(() {
-                            _sortCol = columnIndex;
-                            _sortAscending = sortAscending;
+                                sortScores('auto_nav');
+                              });
+                            }),
+                        DataColumn(
+                            label: Padding(
+                              padding: const EdgeInsets.only(left: 16.0),
+                              child: Text('Hyperdrive'),
+                            ),
+                            onSort: (columnIndex, sortAscending) {
+                              setState(() {
+                                _sortCol = columnIndex;
+                                _sortAscending = sortAscending;
 
-                            sortScores('hyperdrive');
-                          });
-                        }),
-                    DataColumn(
-                        label: Padding(
-                          padding: const EdgeInsets.only(left: 16.0),
-                          child: Text('Interstellar Accuracy'),
-                        ),
-                        onSort: (columnIndex, sortAscending) {
-                          setState(() {
-                            _sortCol = columnIndex;
-                            _sortAscending = sortAscending;
+                                sortScores('hyperdrive');
+                              });
+                            }),
+                        DataColumn(
+                            label: Padding(
+                              padding: const EdgeInsets.only(left: 16.0),
+                              child: Text('Interstellar Accuracy'),
+                            ),
+                            onSort: (columnIndex, sortAscending) {
+                              setState(() {
+                                _sortCol = columnIndex;
+                                _sortAscending = sortAscending;
 
-                            sortScores('interstellar', lowerIsBetter: false);
-                          });
-                        }),
-                    DataColumn(
-                        label: Padding(
-                          padding: const EdgeInsets.only(left: 16.0),
-                          child: Text('Power Port'),
-                        ),
-                        onSort: (columnIndex, sortAscending) {
-                          setState(() {
-                            _sortCol = columnIndex;
-                            _sortAscending = sortAscending;
+                                sortScores('interstellar',
+                                    lowerIsBetter: false);
+                              });
+                            }),
+                        DataColumn(
+                            label: Padding(
+                              padding: const EdgeInsets.only(left: 16.0),
+                              child: Text('Power Port'),
+                            ),
+                            onSort: (columnIndex, sortAscending) {
+                              setState(() {
+                                _sortCol = columnIndex;
+                                _sortAscending = sortAscending;
 
-                            sortScores('powerport', lowerIsBetter: false);
-                          });
-                        }),
-                  ],
-                  rows: getDataRows()),
+                                sortScores('powerport', lowerIsBetter: false);
+                              });
+                            }),
+                      ],
+                      rows: getDataRows()),
+                ],
+              ),
             ),
           )
         ],
