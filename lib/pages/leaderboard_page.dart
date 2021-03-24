@@ -145,7 +145,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
               Text(_startRow.toString() + ' - ' + _endRow.toString()),
               IconButton(
                   icon: Icon(Icons.chevron_right_rounded),
-                  onPressed: _scores.length < 50
+                  onPressed: _scores.length < 49
                       ? null
                       : () {
                           setState(() {
