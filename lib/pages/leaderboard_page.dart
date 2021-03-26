@@ -23,10 +23,14 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   double _bestInter = 0;
   double _bestPower = 0;
   int _startRow = 1;
-  int _endRow = 50;
+  int _rowsPerPage = 50;
+  String _currentSortKey = 'rank';
 
-  void getTableData(int startRank, int endRank) {
-    widget.db.getScoreDocs(startRank, endRank).then((querySnapshot) async {
+  void getTableData({bool descending = false}) {
+    widget.db
+        .getPaginatedDocs(_currentSortKey, _startRow, _rowsPerPage,
+            descending: descending)
+        .then((querySnapshot) async {
       var scores = [];
       QuerySnapshot vidSnapshot = await widget.db.getVideoDocs();
       var highScores = await widget.db.getHighScores();
@@ -84,7 +88,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           'powerport_vid': powerportVid
         });
       }
-      scores.sort((a, b) => a['rank'].compareTo(b['rank']));
+      // scores.sort((a, b) => a['rank'].compareTo(b['rank']));
       setState(() {
         _isLoading = false;
         _scores = scores;
@@ -95,7 +99,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   @override
   void initState() {
     super.initState();
-    getTableData(1, 50);
+    _currentSortKey = 'rank';
+    _startRow = 1;
+    getTableData();
   }
 
   @override
@@ -137,23 +143,23 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           setState(() {
                             _isLoading = true;
                             _startRow -= 50;
-                            _endRow -= 50;
                             _scores = [];
-                            getTableData(_startRow, _endRow);
+                            getTableData(descending: !_sortAscending);
                           });
                         }),
-              Text(_startRow.toString() + ' - ' + _endRow.toString()),
+              Text(_startRow.toString() +
+                  ' - ' +
+                  (_startRow + _rowsPerPage - 1).toString()),
               IconButton(
                   icon: Icon(Icons.chevron_right_rounded),
-                  onPressed: _scores.length < 49
+                  onPressed: _scores.length < 49 // ?
                       ? null
                       : () {
                           setState(() {
                             _isLoading = true;
                             _startRow += 50;
-                            _endRow += 50;
                             _scores = [];
-                            getTableData(_startRow, _endRow);
+                            getTableData(descending: !_sortAscending);
                           });
                         }),
             ],
@@ -404,8 +410,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
+                                _scores = [];
+                                _isLoading = true;
+                                _startRow = 1;
+                                _currentSortKey = 'rank';
 
-                                sortScores('rank');
+                                getTableData(descending: !_sortAscending);
                               });
                             }),
                         DataColumn(
@@ -417,8 +427,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
+                                _scores = [];
+                                _isLoading = true;
+                                _startRow = 1;
+                                _currentSortKey = 'team_rank';
 
-                                sortScores('team');
+                                getTableData(descending: !_sortAscending);
                               });
                             }),
                         DataColumn(
@@ -430,8 +444,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
+                                _scores = [];
+                                _isLoading = true;
+                                _startRow = 1;
+                                _currentSortKey = 'galactic_rank';
 
-                                sortScores('galactic_search');
+                                getTableData(descending: !_sortAscending);
                               });
                             }),
                         DataColumn(
@@ -443,8 +461,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
+                                _scores = [];
+                                _isLoading = true;
+                                _startRow = 1;
+                                _currentSortKey = 'auto_rank';
 
-                                sortScores('auto_nav');
+                                getTableData(descending: !_sortAscending);
                               });
                             }),
                         DataColumn(
@@ -456,8 +478,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
+                                _scores = [];
+                                _isLoading = true;
+                                _startRow = 1;
+                                _currentSortKey = 'hyper_rank';
 
-                                sortScores('hyperdrive');
+                                getTableData(descending: !_sortAscending);
                               });
                             }),
                         DataColumn(
@@ -469,9 +495,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
+                                _scores = [];
+                                _isLoading = true;
+                                _startRow = 1;
+                                _currentSortKey = 'inter_rank';
 
-                                sortScores('interstellar',
-                                    lowerIsBetter: false);
+                                getTableData(descending: !_sortAscending);
                               });
                             }),
                         DataColumn(
@@ -483,8 +512,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
+                                _scores = [];
+                                _isLoading = true;
+                                _startRow = 1;
+                                _currentSortKey = 'power_rank';
 
-                                sortScores('powerport', lowerIsBetter: false);
+                                getTableData(descending: !_sortAscending);
                               });
                             }),
                       ],

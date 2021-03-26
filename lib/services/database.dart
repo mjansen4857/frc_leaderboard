@@ -9,10 +9,23 @@ class Database {
   final CollectionReference cheese =
       FirebaseFirestore.instance.collection('cheese');
 
-  Future<QuerySnapshot> getScoreDocs(int startRank, int endRank) async {
+  Future<QuerySnapshot> getPaginatedDocs(String key, dynamic startAt, int limit,
+      {bool descending = false}) async {
+    if (descending) {
+      QuerySnapshot lowestRank =
+          await scores.orderBy(key, descending: true).limit(1).get();
+      int rank = lowestRank.docs.first.data()[key];
+      int start = rank - (startAt - 1);
+      return scores
+          .orderBy(key, descending: true)
+          .startAt([start])
+          .limit(limit)
+          .get();
+    }
     return scores
-        .where('rank', isGreaterThanOrEqualTo: startRank)
-        .where('rank', isLessThanOrEqualTo: endRank)
+        .orderBy(key, descending: false)
+        .startAt([startAt])
+        .limit(limit)
         .get();
   }
 
