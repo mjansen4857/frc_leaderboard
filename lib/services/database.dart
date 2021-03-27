@@ -9,6 +9,18 @@ class Database {
   final CollectionReference cheese =
       FirebaseFirestore.instance.collection('cheese');
 
+  Future<DocumentSnapshot> getSingleTeamDoc(String team) {
+    return scores.doc(team).get();
+  }
+
+  Future<QuerySnapshot> getGroupDocs(String group, String sortKey,
+      {bool descending = false}) {
+    return scores
+        .where('group', isEqualTo: group.toUpperCase())
+        .orderBy(sortKey, descending: descending)
+        .get();
+  }
+
   Future<QuerySnapshot> getPaginatedDocs(String key, dynamic startAt, int limit,
       {bool descending = false}) async {
     if (descending) {

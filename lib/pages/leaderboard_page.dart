@@ -25,83 +25,28 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   int _startRow = 1;
   int _rowsPerPage = 50;
   String _currentSortKey = 'rank';
-
-  void getTableData({bool descending = false}) {
-    widget.db
-        .getPaginatedDocs(_currentSortKey, _startRow, _rowsPerPage,
-            descending: descending)
-        .then((querySnapshot) async {
-      var scores = [];
-      QuerySnapshot vidSnapshot = await widget.db.getVideoDocs();
-      var highScores = await widget.db.getHighScores();
-
-      _bestGalactic = highScores['galactic_search'];
-      _bestAuto = highScores['auto_nav'];
-      _bestHyper = highScores['hyperdrive'];
-      _bestInter = highScores['interstellar'];
-      _bestPower = highScores['powerport'];
-
-      for (var doc in querySnapshot.docs) {
-        int team = int.parse(doc.id);
-        int rank = doc.data()['rank'];
-        double galactic_search = doc.data()['galactic_search'];
-        double auto_nav = doc.data()['auto_nav'];
-        double hyperdrive = doc.data()['hyperdrive'];
-        double interstellar = doc.data()['interstellar'];
-        double powerport = doc.data()['powerport'];
-        int change = doc.data()['change'];
-
-        var revealVid;
-        var galacticVid;
-        var autoNavVid;
-        var hyperdriveVid;
-        var interstellarVid;
-        var powerportVid;
-
-        for (var vidDoc in vidSnapshot.docs) {
-          if (int.parse(vidDoc.id) == team) {
-            revealVid = vidDoc.data()['reveal'];
-            galacticVid = vidDoc.data()['galactic_search'];
-            autoNavVid = vidDoc.data()['auto_nav'];
-            hyperdriveVid = vidDoc.data()['hyperdrive'];
-            interstellarVid = vidDoc.data()['interstellar'];
-            powerportVid = vidDoc.data()['powerport'];
-
-            break;
-          }
-        }
-
-        scores.add({
-          'team': team,
-          'rank': rank,
-          'change': change,
-          'galactic_search': galactic_search,
-          'auto_nav': auto_nav,
-          'hyperdrive': hyperdrive,
-          'interstellar': interstellar,
-          'powerport': powerport,
-          'reveal_vid': revealVid,
-          'galactic_search_vid': galacticVid,
-          'auto_nav_vid': autoNavVid,
-          'hyperdrive_vid': hyperdriveVid,
-          'interstellar_vid': interstellarVid,
-          'powerport_vid': powerportVid
-        });
-      }
-      // scores.sort((a, b) => a['rank'].compareTo(b['rank']));
-      setState(() {
-        _isLoading = false;
-        _scores = scores;
-      });
-    });
-  }
+  QuerySnapshot _vidSnapshot;
+  bool _paginated = true;
+  String _searchKey;
 
   @override
   void initState() {
     super.initState();
-    _currentSortKey = 'rank';
-    _startRow = 1;
-    getTableData();
+    widget.db.getVideoDocs().then((vidSnap) {
+      _vidSnapshot = vidSnap;
+      widget.db.getHighScores().then((highScores) {
+        _bestGalactic = highScores['galactic_search'];
+        _bestAuto = highScores['auto_nav'];
+        _bestHyper = highScores['hyperdrive'];
+        _bestInter = highScores['interstellar'];
+        _bestPower = highScores['powerport'];
+
+        _currentSortKey = 'rank';
+        _startRow = 1;
+        _paginated = true;
+        getPaginatedTableData();
+      });
+    });
   }
 
   @override
@@ -131,41 +76,286 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       ),
       bottomNavigationBar: BottomAppBar(
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.fromLTRB(12, 8.0, 12, 8),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                  icon: Icon(Icons.chevron_left_rounded),
-                  onPressed: _startRow == 1
-                      ? null
-                      : () {
-                          setState(() {
-                            _isLoading = true;
-                            _startRow -= 50;
-                            _scores = [];
-                            getTableData(descending: !_sortAscending);
-                          });
-                        }),
-              Text(_startRow.toString() +
-                  ' - ' +
-                  (_startRow + _rowsPerPage - 1).toString()),
-              IconButton(
-                  icon: Icon(Icons.chevron_right_rounded),
-                  onPressed: _scores.length < 49 // ?
-                      ? null
-                      : () {
-                          setState(() {
-                            _isLoading = true;
-                            _startRow += 50;
-                            _scores = [];
-                            getTableData(descending: !_sortAscending);
-                          });
-                        }),
+              buildTeamSearch(),
+              Visibility(
+                child: buildPageButtons(),
+                visible: _paginated,
+              ),
+              SizedBox(
+                width: 205,
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  void getSearchTableData(String searchKey, {bool descending = false}) {
+    if (int.tryParse(searchKey) != null) {
+      widget.db.getSingleTeamDoc(searchKey).then((doc) {
+        var scores = [];
+
+        int team = int.parse(doc.id);
+        int rank = doc.data()['rank'];
+        double galactic_search = doc.data()['galactic_search'];
+        double auto_nav = doc.data()['auto_nav'];
+        double hyperdrive = doc.data()['hyperdrive'];
+        double interstellar = doc.data()['interstellar'];
+        double powerport = doc.data()['powerport'];
+        int change = doc.data()['change'];
+
+        var revealVid;
+        var galacticVid;
+        var autoNavVid;
+        var hyperdriveVid;
+        var interstellarVid;
+        var powerportVid;
+
+        for (var vidDoc in _vidSnapshot.docs) {
+          if (int.parse(vidDoc.id) == team) {
+            revealVid = vidDoc.data()['reveal'];
+            galacticVid = vidDoc.data()['galactic_search'];
+            autoNavVid = vidDoc.data()['auto_nav'];
+            hyperdriveVid = vidDoc.data()['hyperdrive'];
+            interstellarVid = vidDoc.data()['interstellar'];
+            powerportVid = vidDoc.data()['powerport'];
+
+            break;
+          }
+        }
+
+        scores.add({
+          'team': team,
+          'rank': rank,
+          'change': change,
+          'galactic_search': galactic_search,
+          'auto_nav': auto_nav,
+          'hyperdrive': hyperdrive,
+          'interstellar': interstellar,
+          'powerport': powerport,
+          'reveal_vid': revealVid,
+          'galactic_search_vid': galacticVid,
+          'auto_nav_vid': autoNavVid,
+          'hyperdrive_vid': hyperdriveVid,
+          'interstellar_vid': interstellarVid,
+          'powerport_vid': powerportVid
+        });
+
+        setState(() {
+          _isLoading = false;
+          _scores = scores;
+          _paginated = false;
+        });
+      });
+    } else {
+      widget.db
+          .getGroupDocs(searchKey, _currentSortKey, descending: descending)
+          .then((querySnapshot) {
+        var scores = [];
+
+        for (var doc in querySnapshot.docs) {
+          int team = int.parse(doc.id);
+          int rank = doc.data()['rank'];
+          double galactic_search = doc.data()['galactic_search'];
+          double auto_nav = doc.data()['auto_nav'];
+          double hyperdrive = doc.data()['hyperdrive'];
+          double interstellar = doc.data()['interstellar'];
+          double powerport = doc.data()['powerport'];
+          int change = doc.data()['change'];
+
+          var revealVid;
+          var galacticVid;
+          var autoNavVid;
+          var hyperdriveVid;
+          var interstellarVid;
+          var powerportVid;
+
+          for (var vidDoc in _vidSnapshot.docs) {
+            if (int.parse(vidDoc.id) == team) {
+              revealVid = vidDoc.data()['reveal'];
+              galacticVid = vidDoc.data()['galactic_search'];
+              autoNavVid = vidDoc.data()['auto_nav'];
+              hyperdriveVid = vidDoc.data()['hyperdrive'];
+              interstellarVid = vidDoc.data()['interstellar'];
+              powerportVid = vidDoc.data()['powerport'];
+
+              break;
+            }
+          }
+
+          scores.add({
+            'team': team,
+            'rank': rank,
+            'change': change,
+            'galactic_search': galactic_search,
+            'auto_nav': auto_nav,
+            'hyperdrive': hyperdrive,
+            'interstellar': interstellar,
+            'powerport': powerport,
+            'reveal_vid': revealVid,
+            'galactic_search_vid': galacticVid,
+            'auto_nav_vid': autoNavVid,
+            'hyperdrive_vid': hyperdriveVid,
+            'interstellar_vid': interstellarVid,
+            'powerport_vid': powerportVid
+          });
+        }
+
+        setState(() {
+          _isLoading = false;
+          _scores = scores;
+          _paginated = false;
+        });
+      });
+    }
+  }
+
+  void getPaginatedTableData({bool descending = false}) {
+    widget.db
+        .getPaginatedDocs(_currentSortKey, _startRow, _rowsPerPage,
+            descending: descending)
+        .then((querySnapshot) async {
+      var scores = [];
+
+      for (var doc in querySnapshot.docs) {
+        int team = int.parse(doc.id);
+        int rank = doc.data()['rank'];
+        double galactic_search = doc.data()['galactic_search'];
+        double auto_nav = doc.data()['auto_nav'];
+        double hyperdrive = doc.data()['hyperdrive'];
+        double interstellar = doc.data()['interstellar'];
+        double powerport = doc.data()['powerport'];
+        int change = doc.data()['change'];
+
+        var revealVid;
+        var galacticVid;
+        var autoNavVid;
+        var hyperdriveVid;
+        var interstellarVid;
+        var powerportVid;
+
+        for (var vidDoc in _vidSnapshot.docs) {
+          if (int.parse(vidDoc.id) == team) {
+            revealVid = vidDoc.data()['reveal'];
+            galacticVid = vidDoc.data()['galactic_search'];
+            autoNavVid = vidDoc.data()['auto_nav'];
+            hyperdriveVid = vidDoc.data()['hyperdrive'];
+            interstellarVid = vidDoc.data()['interstellar'];
+            powerportVid = vidDoc.data()['powerport'];
+
+            break;
+          }
+        }
+
+        scores.add({
+          'team': team,
+          'rank': rank,
+          'change': change,
+          'galactic_search': galactic_search,
+          'auto_nav': auto_nav,
+          'hyperdrive': hyperdrive,
+          'interstellar': interstellar,
+          'powerport': powerport,
+          'reveal_vid': revealVid,
+          'galactic_search_vid': galacticVid,
+          'auto_nav_vid': autoNavVid,
+          'hyperdrive_vid': hyperdriveVid,
+          'interstellar_vid': interstellarVid,
+          'powerport_vid': powerportVid
+        });
+      }
+
+      setState(() {
+        _isLoading = false;
+        _scores = scores;
+        _paginated = true;
+      });
+    });
+  }
+
+  Widget buildTeamSearch() {
+    return SizedBox(
+      width: 205,
+      height: 40,
+      child: TextField(
+        decoration: InputDecoration(
+          icon: (_searchKey == null)
+              ? IconButton(
+                  icon: Icon(Icons.search),
+                  onPressed: null,
+                )
+              : IconButton(
+                  icon: Icon(Icons.close),
+                  onPressed: () {
+                    setState(() {
+                      _scores = [];
+                      _sortCol = 0;
+                      _sortAscending = true;
+                      _searchKey = null;
+                      _currentSortKey = 'rank';
+                      _isLoading = true;
+                      getPaginatedTableData();
+                    });
+                  },
+                ),
+          labelText: 'Team # or Group Code',
+          labelStyle: TextStyle(fontSize: 12),
+          filled: true,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(5),
+          ),
+        ),
+        onSubmitted: (String search) {
+          setState(() {
+            _scores = [];
+            _sortCol = 0;
+            _sortAscending = true;
+            _isLoading = true;
+            _searchKey = search;
+            getSearchTableData(_searchKey);
+          });
+        },
+      ),
+    );
+  }
+
+  Widget buildPageButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+            icon: Icon(Icons.chevron_left_rounded),
+            onPressed: _startRow == 1
+                ? null
+                : () {
+                    setState(() {
+                      _isLoading = true;
+                      _startRow -= 50;
+                      _scores = [];
+                      getPaginatedTableData(descending: !_sortAscending);
+                    });
+                  }),
+        Text(_startRow.toString() +
+            ' - ' +
+            (_startRow + _rowsPerPage - 1).toString()),
+        IconButton(
+            icon: Icon(Icons.chevron_right_rounded),
+            onPressed: _scores.length < 49 // ?
+                ? null
+                : () {
+                    setState(() {
+                      _isLoading = true;
+                      _startRow += 50;
+                      _scores = [];
+                      getPaginatedTableData(descending: !_sortAscending);
+                    });
+                  }),
+      ],
     );
   }
 
@@ -410,12 +600,17 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
-                                _scores = [];
-                                _isLoading = true;
-                                _startRow = 1;
-                                _currentSortKey = 'rank';
+                                if (_searchKey == null) {
+                                  _scores = [];
+                                  _isLoading = true;
+                                  _startRow = 1;
+                                  _currentSortKey = 'rank';
 
-                                getTableData(descending: !_sortAscending);
+                                  getPaginatedTableData(
+                                      descending: !_sortAscending);
+                                } else {
+                                  sortScores('rank');
+                                }
                               });
                             }),
                         DataColumn(
@@ -427,12 +622,17 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
-                                _scores = [];
-                                _isLoading = true;
-                                _startRow = 1;
-                                _currentSortKey = 'team_rank';
+                                if (_searchKey == null) {
+                                  _scores = [];
+                                  _isLoading = true;
+                                  _startRow = 1;
+                                  _currentSortKey = 'team_rank';
 
-                                getTableData(descending: !_sortAscending);
+                                  getPaginatedTableData(
+                                      descending: !_sortAscending);
+                                } else {
+                                  sortScores('team');
+                                }
                               });
                             }),
                         DataColumn(
@@ -444,12 +644,17 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
-                                _scores = [];
-                                _isLoading = true;
-                                _startRow = 1;
-                                _currentSortKey = 'galactic_rank';
+                                if (_searchKey == null) {
+                                  _scores = [];
+                                  _isLoading = true;
+                                  _startRow = 1;
+                                  _currentSortKey = 'galactic_rank';
 
-                                getTableData(descending: !_sortAscending);
+                                  getPaginatedTableData(
+                                      descending: !_sortAscending);
+                                } else {
+                                  sortScores('galactic_search');
+                                }
                               });
                             }),
                         DataColumn(
@@ -461,12 +666,17 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
-                                _scores = [];
-                                _isLoading = true;
-                                _startRow = 1;
-                                _currentSortKey = 'auto_rank';
+                                if (_searchKey == null) {
+                                  _scores = [];
+                                  _isLoading = true;
+                                  _startRow = 1;
+                                  _currentSortKey = 'auto_rank';
 
-                                getTableData(descending: !_sortAscending);
+                                  getPaginatedTableData(
+                                      descending: !_sortAscending);
+                                } else {
+                                  sortScores('auto_nav');
+                                }
                               });
                             }),
                         DataColumn(
@@ -478,12 +688,17 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
-                                _scores = [];
-                                _isLoading = true;
-                                _startRow = 1;
-                                _currentSortKey = 'hyper_rank';
+                                if (_searchKey == null) {
+                                  _scores = [];
+                                  _isLoading = true;
+                                  _startRow = 1;
+                                  _currentSortKey = 'hyper_rank';
 
-                                getTableData(descending: !_sortAscending);
+                                  getPaginatedTableData(
+                                      descending: !_sortAscending);
+                                } else {
+                                  sortScores('hyperdrive');
+                                }
                               });
                             }),
                         DataColumn(
@@ -495,12 +710,18 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
-                                _scores = [];
-                                _isLoading = true;
-                                _startRow = 1;
-                                _currentSortKey = 'inter_rank';
+                                if (_searchKey == null) {
+                                  _scores = [];
+                                  _isLoading = true;
+                                  _startRow = 1;
+                                  _currentSortKey = 'inter_rank';
 
-                                getTableData(descending: !_sortAscending);
+                                  getPaginatedTableData(
+                                      descending: !_sortAscending);
+                                } else {
+                                  sortScores('interstellar',
+                                      lowerIsBetter: false);
+                                }
                               });
                             }),
                         DataColumn(
@@ -512,12 +733,17 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
-                                _scores = [];
-                                _isLoading = true;
-                                _startRow = 1;
-                                _currentSortKey = 'power_rank';
+                                if (_searchKey == null) {
+                                  _scores = [];
+                                  _isLoading = true;
+                                  _startRow = 1;
+                                  _currentSortKey = 'power_rank';
 
-                                getTableData(descending: !_sortAscending);
+                                  getPaginatedTableData(
+                                      descending: !_sortAscending);
+                                } else {
+                                  sortScores('powerport', lowerIsBetter: false);
+                                }
                               });
                             }),
                       ],
@@ -544,7 +770,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       return a[key].compareTo(b[key]);
     });
 
-    if (!_sortAscending) {
+    if ((!_sortAscending && lowerIsBetter) ||
+        (_sortAscending && !lowerIsBetter)) {
       _scores = _scores.reversed.toList();
     }
   }

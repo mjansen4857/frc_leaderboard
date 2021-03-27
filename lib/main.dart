@@ -18,6 +18,7 @@ class Leaderboard extends StatelessWidget {
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
+        accentColor: Colors.white,
       ),
       themeMode: ThemeMode.dark,
       home: LeaderboardPage(
