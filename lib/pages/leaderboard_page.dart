@@ -1,7 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:frc_leaderboard/services/database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+enum RankMode { best3, overall }
+enum ScoreMode { rawScore, computedScore, rank }
 
 class LeaderboardPage extends StatefulWidget {
   final Database db;
@@ -28,23 +32,36 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   QuerySnapshot _vidSnapshot;
   bool _paginated = true;
   String _searchKey;
+  RankMode _rankMode = RankMode.best3;
+  ScoreMode _scoreMode = ScoreMode.rawScore;
+  SharedPreferences _prefs;
 
   @override
   void initState() {
     super.initState();
-    widget.db.getVideoDocs().then((vidSnap) {
-      _vidSnapshot = vidSnap;
-      widget.db.getHighScores().then((highScores) {
-        _bestGalactic = highScores['galactic_search'];
-        _bestAuto = highScores['auto_nav'];
-        _bestHyper = highScores['hyperdrive'];
-        _bestInter = highScores['interstellar'];
-        _bestPower = highScores['powerport'];
+    SharedPreferences.getInstance().then((val) {
+      _prefs = val;
+      String savedRankMode = _prefs.getString('rankMode');
+      widget.db.getVideoDocs().then((vidSnap) {
+        _vidSnapshot = vidSnap;
+        widget.db.getHighScores().then((highScores) {
+          _bestGalactic = highScores['galactic_search'];
+          _bestAuto = highScores['auto_nav'];
+          _bestHyper = highScores['hyperdrive'];
+          _bestInter = highScores['interstellar'];
+          _bestPower = highScores['powerport'];
 
-        _currentSortKey = 'rank';
-        _startRow = 1;
-        _paginated = true;
-        getPaginatedTableData();
+          _startRow = 1;
+          _paginated = true;
+          if (savedRankMode == 'RankMode.best3' || savedRankMode == null) {
+            _rankMode = RankMode.best3;
+            _currentSortKey = 'rank';
+          } else {
+            _rankMode = RankMode.overall;
+            _currentSortKey = 'rank_5';
+          }
+          getPaginatedTableData();
+        });
       });
     });
   }
@@ -63,7 +80,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 width: 60,
               ),
             ),
-            Text('IRH Global Leaderboard'),
+            Text('IRH Leaderboard'),
           ],
         ),
         backgroundColor: Colors.indigo,
@@ -73,6 +90,93 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           showLoading(),
           buildTable(),
         ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          children: [
+            DrawerHeader(
+              child: Text(''),
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                image: DecorationImage(
+                  image: AssetImage('images/ir_logo2.png'),
+                  fit: BoxFit.fitHeight,
+                ),
+              ),
+            ),
+            ListTile(
+              title: Text('Rank Mode'),
+            ),
+            RadioListTile(
+                title: Text('Best 3 Scores'),
+                activeColor: Colors.indigoAccent,
+                value: RankMode.best3,
+                groupValue: _rankMode,
+                onChanged: (RankMode mode) {
+                  setState(() {
+                    _rankMode = mode;
+                    _prefs.setString('rankMode', mode.toString());
+                    if (_currentSortKey == 'rank_5') {
+                      _isLoading = true;
+                      _currentSortKey = 'rank';
+                      _scores = [];
+                      getPaginatedTableData(descending: !_sortAscending);
+                    }
+                  });
+                }),
+            RadioListTile(
+                title: Text('Overall Performance'),
+                activeColor: Colors.indigoAccent,
+                value: RankMode.overall,
+                groupValue: _rankMode,
+                onChanged: (RankMode mode) {
+                  setState(() {
+                    _rankMode = mode;
+                    _prefs.setString('rankMode', mode.toString());
+                    if (_currentSortKey == 'rank') {
+                      _isLoading = true;
+                      _currentSortKey = 'rank_5';
+                      _scores = [];
+                      getPaginatedTableData(descending: !_sortAscending);
+                    }
+                  });
+                }),
+            Divider(),
+            ListTile(
+              title: Text('Score Display Mode'),
+            ),
+            RadioListTile(
+                title: Text('Raw Score'),
+                activeColor: Colors.indigoAccent,
+                value: ScoreMode.rawScore,
+                groupValue: _scoreMode,
+                onChanged: (ScoreMode mode) {
+                  setState(() {
+                    _scoreMode = mode;
+                  });
+                }),
+            RadioListTile(
+                title: Text('Computed Score'),
+                activeColor: Colors.indigoAccent,
+                value: ScoreMode.computedScore,
+                groupValue: _scoreMode,
+                onChanged: (ScoreMode mode) {
+                  setState(() {
+                    _scoreMode = mode;
+                  });
+                }),
+            RadioListTile(
+                title: Text('Challenge Rank'),
+                activeColor: Colors.indigoAccent,
+                value: ScoreMode.rank,
+                groupValue: _scoreMode,
+                onChanged: (ScoreMode mode) {
+                  setState(() {
+                    _scoreMode = mode;
+                  });
+                }),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomAppBar(
         child: Padding(
@@ -95,56 +199,86 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     );
   }
 
+  String getRankKey() {
+    if (_rankMode == RankMode.best3) {
+      return 'rank';
+    } else {
+      return 'rank_5';
+    }
+  }
+
+  String getChangeKey() {
+    if (_rankMode == RankMode.best3) {
+      return 'change';
+    } else {
+      return 'change_5';
+    }
+  }
+
   void getSearchTableData(String searchKey, {bool descending = false}) {
     if (int.tryParse(searchKey) != null) {
       widget.db.getSingleTeamDoc(searchKey).then((doc) {
         var scores = [];
 
-        int team = int.parse(doc.id);
-        int rank = doc.data()['rank'];
-        double galactic_search = doc.data()['galactic_search'];
-        double auto_nav = doc.data()['auto_nav'];
-        double hyperdrive = doc.data()['hyperdrive'];
-        double interstellar = doc.data()['interstellar'];
-        double powerport = doc.data()['powerport'];
-        int change = doc.data()['change'];
+        if (doc.exists) {
+          int team = int.parse(doc.id);
+          int rank = doc.data()['rank'];
+          double galactic_search = doc.data()['galactic_search'];
+          double auto_nav = doc.data()['auto_nav'];
+          double hyperdrive = doc.data()['hyperdrive'];
+          double interstellar = doc.data()['interstellar'];
+          double powerport = doc.data()['powerport'];
+          int change = doc.data()['change'];
 
-        var revealVid;
-        var galacticVid;
-        var autoNavVid;
-        var hyperdriveVid;
-        var interstellarVid;
-        var powerportVid;
+          var revealVid;
+          var galacticVid;
+          var autoNavVid;
+          var hyperdriveVid;
+          var interstellarVid;
+          var powerportVid;
 
-        for (var vidDoc in _vidSnapshot.docs) {
-          if (int.parse(vidDoc.id) == team) {
-            revealVid = vidDoc.data()['reveal'];
-            galacticVid = vidDoc.data()['galactic_search'];
-            autoNavVid = vidDoc.data()['auto_nav'];
-            hyperdriveVid = vidDoc.data()['hyperdrive'];
-            interstellarVid = vidDoc.data()['interstellar'];
-            powerportVid = vidDoc.data()['powerport'];
+          for (var vidDoc in _vidSnapshot.docs) {
+            if (int.parse(vidDoc.id) == team) {
+              revealVid = vidDoc.data()['reveal'];
+              galacticVid = vidDoc.data()['galactic_search'];
+              autoNavVid = vidDoc.data()['auto_nav'];
+              hyperdriveVid = vidDoc.data()['hyperdrive'];
+              interstellarVid = vidDoc.data()['interstellar'];
+              powerportVid = vidDoc.data()['powerport'];
 
-            break;
+              break;
+            }
           }
-        }
 
-        scores.add({
-          'team': team,
-          'rank': rank,
-          'change': change,
-          'galactic_search': galactic_search,
-          'auto_nav': auto_nav,
-          'hyperdrive': hyperdrive,
-          'interstellar': interstellar,
-          'powerport': powerport,
-          'reveal_vid': revealVid,
-          'galactic_search_vid': galacticVid,
-          'auto_nav_vid': autoNavVid,
-          'hyperdrive_vid': hyperdriveVid,
-          'interstellar_vid': interstellarVid,
-          'powerport_vid': powerportVid
-        });
+          scores.add({
+            'team': team,
+            'rank': rank,
+            'rank_5': doc.data()['rank_5'],
+            'change': change,
+            'change_5': doc.data()['change_5'],
+            'galactic_search': galactic_search,
+            'computed_galactic': doc.data()['computed_galactic'],
+            'galactic_rank': doc.data()['galactic_rank'],
+            'auto_nav': auto_nav,
+            'computed_auto': doc.data()['computed_auto'],
+            'auto_rank': doc.data()['auto_rank'],
+            'hyperdrive': hyperdrive,
+            'computed_hyperdrive': doc.data()['computed_hyperdrive'],
+            'hyper_rank': doc.data()['hyper_rank'],
+            'interstellar': interstellar,
+            'computed_interstellar': doc.data()['computed_interstellar'],
+            'inter_rank': doc.data()['inter_rank'],
+            'powerport': powerport,
+            'computed_powerport': doc.data()['computed_powerport'],
+            'power_rank': doc.data()['power_rank'],
+            'reveal_vid': revealVid,
+            'galactic_search_vid': galacticVid,
+            'auto_nav_vid': autoNavVid,
+            'hyperdrive_vid': hyperdriveVid,
+            'interstellar_vid': interstellarVid,
+            'powerport_vid': powerportVid
+          });
+        }
 
         setState(() {
           _isLoading = false;
@@ -191,12 +325,24 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           scores.add({
             'team': team,
             'rank': rank,
+            'rank_5': doc.data()['rank_5'],
             'change': change,
+            'change_5': doc.data()['change_5'],
             'galactic_search': galactic_search,
+            'computed_galactic': doc.data()['computed_galactic'],
+            'galactic_rank': doc.data()['galactic_rank'],
             'auto_nav': auto_nav,
+            'computed_auto': doc.data()['computed_auto'],
+            'auto_rank': doc.data()['auto_rank'],
             'hyperdrive': hyperdrive,
+            'computed_hyperdrive': doc.data()['computed_hyperdrive'],
+            'hyper_rank': doc.data()['hyper_rank'],
             'interstellar': interstellar,
+            'computed_interstellar': doc.data()['computed_interstellar'],
+            'inter_rank': doc.data()['inter_rank'],
             'powerport': powerport,
+            'computed_powerport': doc.data()['computed_powerport'],
+            'power_rank': doc.data()['power_rank'],
             'reveal_vid': revealVid,
             'galactic_search_vid': galacticVid,
             'auto_nav_vid': autoNavVid,
@@ -255,12 +401,24 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         scores.add({
           'team': team,
           'rank': rank,
+          'rank_5': doc.data()['rank_5'],
           'change': change,
+          'change_5': doc.data()['change_5'],
           'galactic_search': galactic_search,
+          'computed_galactic': doc.data()['computed_galactic'],
+          'galactic_rank': doc.data()['galactic_rank'],
           'auto_nav': auto_nav,
+          'computed_auto': doc.data()['computed_auto'],
+          'auto_rank': doc.data()['auto_rank'],
           'hyperdrive': hyperdrive,
+          'computed_hyperdrive': doc.data()['computed_hyperdrive'],
+          'hyper_rank': doc.data()['hyper_rank'],
           'interstellar': interstellar,
+          'computed_interstellar': doc.data()['computed_interstellar'],
+          'inter_rank': doc.data()['inter_rank'],
           'powerport': powerport,
+          'computed_powerport': doc.data()['computed_powerport'],
+          'power_rank': doc.data()['power_rank'],
           'reveal_vid': revealVid,
           'galactic_search_vid': galacticVid,
           'auto_nav_vid': autoNavVid,
@@ -294,7 +452,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                     _sortCol = 0;
                     _sortAscending = true;
                     _searchKey = null;
-                    _currentSortKey = 'rank';
+                    _currentSortKey = getRankKey();
                     _isLoading = true;
                     getPaginatedTableData();
                   });
@@ -450,26 +608,76 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     }
   }
 
+  double getGalacticValue(var score) {
+    if (_scoreMode == ScoreMode.rank) {
+      return score['galactic_rank'];
+    } else if (_scoreMode == ScoreMode.computedScore) {
+      return score['computed_galactic'];
+    } else {
+      return score['galactic_search'];
+    }
+  }
+
+  double getAutoValue(var score) {
+    if (_scoreMode == ScoreMode.rank) {
+      return score['auto_rank'];
+    } else if (_scoreMode == ScoreMode.computedScore) {
+      return score['computed_auto'];
+    } else {
+      return score['auto_nav'];
+    }
+  }
+
+  double getHyperdriveValue(var score) {
+    if (_scoreMode == ScoreMode.rank) {
+      return score['hyper_rank'];
+    } else if (_scoreMode == ScoreMode.computedScore) {
+      return score['computed_hyperdrive'];
+    } else {
+      return score['hyperdrive'];
+    }
+  }
+
+  double getInterstellarValue(var score) {
+    if (_scoreMode == ScoreMode.rank) {
+      return score['inter_rank'];
+    } else if (_scoreMode == ScoreMode.computedScore) {
+      return score['computed_interstellar'];
+    } else {
+      return score['interstellar'];
+    }
+  }
+
+  double getPowerportValue(var score) {
+    if (_scoreMode == ScoreMode.rank) {
+      return score['power_rank'];
+    } else if (_scoreMode == ScoreMode.computedScore) {
+      return score['computed_powerport'];
+    } else {
+      return score['powerport'];
+    }
+  }
+
   List<DataRow> getDataRows() {
     List<DataRow> rows = [];
     for (var score in _scores) {
       var galacticText = getScoreLabel(
-          score['galactic_search'],
+          getGalacticValue(score),
           score['galactic_search'] == _bestGalactic,
           score['galactic_search_vid'] != null);
-      var autoNavText = getScoreLabel(score['auto_nav'],
+      var autoNavText = getScoreLabel(getAutoValue(score),
           score['auto_nav'] == _bestAuto, score['auto_nav_vid'] != null);
-      var hyperdriveText = getScoreLabel(score['hyperdrive'],
+      var hyperdriveText = getScoreLabel(getHyperdriveValue(score),
           score['hyperdrive'] == _bestHyper, score['hyperdrive_vid'] != null);
       var interstellarText = getScoreLabel(
-          score['interstellar'],
+          getInterstellarValue(score),
           score['interstellar'] == _bestInter,
           score['interstellar_vid'] != null);
-      var powerportText = getScoreLabel(score['powerport'],
+      var powerportText = getScoreLabel(getPowerportValue(score),
           score['powerport'] == _bestPower, score['powerport_vid'] != null);
 
       rows.add(DataRow(cells: <DataCell>[
-        DataCell(getRankWidget(score['rank'], score['change'])),
+        DataCell(getRankWidget(score[getRankKey()], score[getChangeKey()])),
         DataCell(score['reveal_vid'] != null
             ? Center(
                 child: TextButton(
@@ -611,12 +819,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                   _scores = [];
                                   _isLoading = true;
                                   _startRow = 1;
-                                  _currentSortKey = 'rank';
+                                  _currentSortKey = getRankKey();
 
                                   getPaginatedTableData(
                                       descending: !_sortAscending);
                                 } else {
-                                  sortScores('rank');
+                                  sortScores(getRankKey());
                                 }
                               });
                             }),
