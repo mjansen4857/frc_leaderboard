@@ -279,48 +279,55 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 
   Widget buildTeamSearch() {
-    return SizedBox(
-      width: 205,
-      height: 40,
-      child: TextField(
-        decoration: InputDecoration(
-          icon: (_searchKey == null)
-              ? IconButton(
-                  icon: Icon(Icons.search),
-                  onPressed: null,
-                )
-              : IconButton(
-                  icon: Icon(Icons.close),
-                  onPressed: () {
-                    setState(() {
-                      _scores = [];
-                      _sortCol = 0;
-                      _sortAscending = true;
-                      _searchKey = null;
-                      _currentSortKey = 'rank';
-                      _isLoading = true;
-                      getPaginatedTableData();
-                    });
-                  },
+    return Row(
+      children: [
+        (_searchKey == null)
+            ? IconButton(
+                icon: Icon(Icons.search),
+                onPressed: null,
+              )
+            : IconButton(
+                icon: Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _scores = [];
+                    _sortCol = 0;
+                    _sortAscending = true;
+                    _searchKey = null;
+                    _currentSortKey = 'rank';
+                    _isLoading = true;
+                    getPaginatedTableData();
+                  });
+                },
+              ),
+        Padding(
+          padding: const EdgeInsets.only(left: 10.0),
+          child: SizedBox(
+            width: 145,
+            height: 40,
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: 'Team # or Group Code',
+                labelStyle: TextStyle(fontSize: 12),
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(5),
                 ),
-          labelText: 'Team # or Group Code',
-          labelStyle: TextStyle(fontSize: 12),
-          filled: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(5),
+              ),
+              onSubmitted: (String search) {
+                setState(() {
+                  _scores = [];
+                  _sortCol = 0;
+                  _sortAscending = true;
+                  _isLoading = true;
+                  _searchKey = search;
+                  getSearchTableData(_searchKey);
+                });
+              },
+            ),
           ),
         ),
-        onSubmitted: (String search) {
-          setState(() {
-            _scores = [];
-            _sortCol = 0;
-            _sortAscending = true;
-            _isLoading = true;
-            _searchKey = search;
-            getSearchTableData(_searchKey);
-          });
-        },
-      ),
+      ],
     );
   }
 
