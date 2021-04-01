@@ -13,19 +13,19 @@ const runtimeOpts = {
     memory: '4GB'
 }
 
-exports.updateData = functions.runWith(runtimeOpts).pubsub.schedule('0 0 * * *')
+exports.updateData = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * *')
     .timeZone('America/New_York')
     .onRun(async (context) => {
-        return updateData();
+        return updateData(true);
     });
 
 exports.updateDataOnCheese = functions.runWith(runtimeOpts).firestore
     .document('cheese/cheese')
     .onUpdate((snap, context) => {
-        return updateData();
+        return updateData(false);
     });
 
-async function updateData() {
+async function updateData(replaceChange) {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
 
@@ -67,7 +67,16 @@ async function updateData() {
                             'computed_hyperdrive': 0,
                             'computed_interstellar': 0,
                             'computed_powerport': 0,
-                            'computed_overall': 0
+                            'computed_overall': 0,
+                            'computed_overall_5': 0,
+                            'team_rank': 0,
+                            'galactic_rank': 0,
+                            'auto_rank': 0,
+                            'hyper_rank': 0,
+                            'inter_rank': 0,
+                            'power_rank': 0,
+                            'rank_5': 0,
+                            'group': event_codes[i],
                         };
                         if (score.galactic_search != 0 || score.auto_nav != 0 || score.hyperdrive != 0 || score.interstellar != 0 || score.powerport != 0) {
                             formatted_scores.push(score);
@@ -77,6 +86,60 @@ async function updateData() {
             }
         }
         browser.close();
+
+        // team
+        formatted_scores.sort((a, b) => {
+            return parseInt(a.team) - parseInt(b.team);
+        });
+        for (var i = 0; i < formatted_scores.length; i++) {
+            formatted_scores[i].team_rank = i + 1;
+        }
+
+        // galactic
+        formatted_scores.sort((a, b) => {
+            if (a.galactic_search == 0) return 1;
+            if (b.galactic_search == 0) return -1;
+            return a.galactic_search - b.galactic_search;
+        });
+        for (var i = 0; i < formatted_scores.length; i++) {
+            formatted_scores[i].galactic_rank = i + 1;
+        }
+
+        // auto
+        formatted_scores.sort((a, b) => {
+            if (a.auto_nav == 0) return 1;
+            if (b.auto_nav == 0) return -1;
+            return a.auto_nav - b.auto_nav;
+        });
+        for (var i = 0; i < formatted_scores.length; i++) {
+            formatted_scores[i].auto_rank = i + 1;
+        }
+
+        // hyper
+        formatted_scores.sort((a, b) => {
+            if (a.hyperdrive == 0) return 1;
+            if (b.hyperdrive == 0) return -1;
+            return a.hyperdrive - b.hyperdrive;
+        });
+        for (var i = 0; i < formatted_scores.length; i++) {
+            formatted_scores[i].hyper_rank = i + 1;
+        }
+
+        // inter
+        formatted_scores.sort((a, b) => {
+            return b.interstellar - a.interstellar;
+        });
+        for (var i = 0; i < formatted_scores.length; i++) {
+            formatted_scores[i].inter_rank = i + 1;
+        }
+
+        // power
+        formatted_scores.sort((a, b) => {
+            return b.powerport - a.powerport;
+        });
+        for (var i = 0; i < formatted_scores.length; i++) {
+            formatted_scores[i].power_rank = i + 1;
+        }
 
         var galactic_scores = [];
         var auto_scores = [];
@@ -166,6 +229,15 @@ async function updateData() {
         }
 
         formatted_scores.sort((a, b) => {
+            var compare = b.computed_overall_5 - a.computed_overall_5;
+            return compare;
+        });
+
+        for (var i = 0; i < formatted_scores.length; i++) {
+            formatted_scores[i].rank_5 = i + 1;
+        }
+
+        formatted_scores.sort((a, b) => {
             var compare = b.computed_overall - a.computed_overall;
 
             if (compare == 0) {
@@ -202,9 +274,17 @@ async function updateData() {
             const score = formatted_scores[i];
             var doc = scores.doc(score.team);
             let change = 0;
+            let change_5 = 0;
             var docData = await doc.get();
             if (docData.exists) {
                 change = docData.data()['rank'] - (i + 1);
+                change_5 = docData.data()['rank_5'] - (i + 1);
+                if (!replaceChange) {
+                    const prevChange = docData.data()['change'];
+                    const prevChange5 = docData.data()['change_5'];
+                    change += prevChange;
+                    change_5 += prevChange5;
+                }
             }
 
             batch.set(doc, {
@@ -214,7 +294,22 @@ async function updateData() {
                 'interstellar': score.interstellar,
                 'powerport': score.powerport,
                 'rank': i + 1,
-                'change': change
+                'rank_5': score.rank_5,
+                'change': change,
+                'change_5': change_5,
+                'team_rank': score.team_rank,
+                'galactic_rank': score.galactic_rank,
+                'auto_rank': score.auto_rank,
+                'hyper_rank': score.hyper_rank,
+                'inter_rank': score.inter_rank,
+                'power_rank': score.power_rank,
+                'group': score.group,
+                'computed_galactic': score.computed_galactic,
+                'computed_auto': score.computed_auto,
+                'computed_hyperdrive': score.computed_hyperdrive,
+                'computed_interstellar': score.computed_interstellar,
+                'computed_powerport': score.computed_powerport,
+                'computed_overall': score.computed_overall
             });
         }
         batch.commit();
