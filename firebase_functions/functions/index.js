@@ -168,28 +168,33 @@ async function updateData(replaceChange) {
 
         galactic_scores.sort((a, b) => a - b);
         const galactic_rValues = getRValues([...galactic_scores]);
-        const galactic_bFirst = Math.min(...galactic_scores);
-        const galactic_bLast = Math.max(...galactic_scores);
+        const galactic_bFirst = Math.min(Math.max(Math.min(...galactic_scores), galactic_rValues.rLower), galactic_rValues.rUpper);
+        const galactic_bLast = Math.min(Math.max(Math.max(...galactic_scores), galactic_rValues.rLower), galactic_rValues.rUpper);
+        console.log('Galactic Bounds:', galactic_bFirst, galactic_bLast);
 
         auto_scores.sort((a, b) => a - b);
         const auto_rValues = getRValues([...auto_scores]);
-        const auto_bFirst = Math.min(...auto_scores);
-        const auto_bLast = Math.max(...auto_scores);
+        const auto_bFirst = Math.min(Math.max(Math.min(...auto_scores), auto_rValues.rLower), auto_rValues.rUpper);
+        const auto_bLast = Math.min(Math.max(Math.max(...auto_scores), auto_rValues.rLower), auto_rValues.rUpper);
+        console.log('Auto Bounds:', auto_bFirst, auto_bLast);
 
         hyper_scores.sort((a, b) => a - b);
         const hyper_rValues = getRValues([...hyper_scores]);
-        const hyper_bFirst = Math.min(...hyper_scores);
-        const hyper_bLast = Math.max(...hyper_scores);
+        const hyper_bFirst = Math.min(Math.max(Math.min(...hyper_scores), hyper_rValues.rLower), hyper_rValues.rUpper);
+        const hyper_bLast = Math.min(Math.max(Math.max(...hyper_scores), hyper_rValues.rLower), hyper_rValues.rUpper);
+        console.log('Hyperdrive Bounds:', hyper_bFirst, hyper_bLast);
 
         interstellar_scores.sort((a, b) => a - b);
         const interstellar_rValues = getRValues([...interstellar_scores]);
-        const interstellar_bFirst = Math.max(...interstellar_scores);
-        const interstellar_bLast = Math.min(...interstellar_scores);
+        const interstellar_bFirst = Math.min(Math.max(Math.max(...interstellar_scores), interstellar_rValues.rLower), interstellar_rValues.rUpper);
+        const interstellar_bLast = Math.min(Math.max(Math.min(...interstellar_scores), interstellar_rValues.rLower), interstellar_rValues.rUpper);
+        console.log('Interstellar Bounds:', interstellar_bFirst, interstellar_bLast);
 
         powerport_scores.sort((a, b) => a - b);
         const powerport_rValues = getRValues([...powerport_scores]);
-        const powerport_bFirst = Math.max(...powerport_scores);
-        const powerport_bLast = Math.min(...powerport_scores);
+        const powerport_bFirst = Math.min(Math.max(Math.max(...powerport_scores), powerport_rValues.rLower), powerport_rValues.rUpper);
+        const powerport_bLast = Math.min(Math.max(Math.min(...powerport_scores), powerport_rValues.rLower), powerport_rValues.rUpper);
+        console.log('Powerport Bounds:', powerport_bFirst, powerport_bLast);
 
         for (var i = 0; i < formatted_scores.length; i++) {
             const score = formatted_scores[i];
@@ -197,35 +202,36 @@ async function updateData(replaceChange) {
             if (score.galactic_search != 0) {
                 const b = Math.max(Math.min(galactic_rValues.rUpper, score.galactic_search), galactic_rValues.rLower);
                 const c = (Math.abs((b - galactic_bLast) / (galactic_bFirst - galactic_bLast)) * 100) + 50;
-                formatted_scores[i].computed_galactic = c;
+                formatted_scores[i].computed_galactic = Math.round(c * 100) / 100.0;
             }
 
             if (score.auto_nav != 0) {
                 const b = Math.max(Math.min(auto_rValues.rUpper, score.auto_nav), auto_rValues.rLower);
                 const c = (Math.abs((b - auto_bLast) / (auto_bFirst - auto_bLast)) * 100) + 50;
-                formatted_scores[i].computed_auto = c;
+                formatted_scores[i].computed_auto = Math.round(c * 100) / 100.0;
             }
 
             if (score.hyperdrive != 0) {
                 const b = Math.max(Math.min(hyper_rValues.rUpper, score.hyperdrive), hyper_rValues.rLower);
                 const c = (Math.abs((b - hyper_bLast) / (hyper_bFirst - hyper_bLast)) * 100) + 50;
-                formatted_scores[i].computed_hyperdrive = c;
+                formatted_scores[i].computed_hyperdrive = Math.round(c * 100) / 100.0;
             }
 
             if (score.interstellar != 0) {
                 const b = Math.max(Math.min(interstellar_rValues.rUpper, score.interstellar), interstellar_rValues.rLower);
                 const c = (Math.abs((b - interstellar_bLast) / (interstellar_bFirst - interstellar_bLast)) * 100) + 50;
-                formatted_scores[i].computed_interstellar = c;
+                formatted_scores[i].computed_interstellar = Math.round(c * 100) / 100.0;
             }
 
             if (score.powerport != 0) {
                 const b = Math.max(Math.min(powerport_rValues.rUpper, score.powerport), powerport_rValues.rLower);
                 const c = (Math.abs((b - powerport_bLast) / (powerport_bFirst - powerport_bLast)) * 100) + 50;
-                formatted_scores[i].computed_powerport = c;
+                formatted_scores[i].computed_powerport = Math.round(c * 100) / 100.0;
             }
 
             const ordered_scores = [score.computed_galactic, score.computed_auto, score.computed_hyperdrive, score.computed_interstellar, score.computed_powerport].sort((a, b) => b - a);
-            formatted_scores[i].computed_overall = ordered_scores[0] + ordered_scores[1] + ordered_scores[2];
+            formatted_scores[i].computed_overall = Math.round((ordered_scores[0] + ordered_scores[1] + ordered_scores[2]) * 100) / 100.0;
+            formatted_scores[i].computed_overall_5 = Math.round((ordered_scores[0] + ordered_scores[1] + ordered_scores[2] + ordered_scores[3] + ordered_scores[4]) * 100) / 100.0;
         }
 
         formatted_scores.sort((a, b) => {
@@ -263,11 +269,11 @@ async function updateData(replaceChange) {
         var batch = db.batch();
 
         batch.set(cheese.doc('high_scores'), {
-            'galactic_search': galactic_bFirst,
-            'auto_nav': auto_bFirst,
-            'hyperdrive': hyper_bFirst,
-            'interstellar': interstellar_bFirst,
-            'powerport': powerport_bFirst
+            'galactic_search': Math.min(...galactic_scores),
+            'auto_nav': Math.min(...auto_scores),
+            'hyperdrive': Math.min(...hyper_scores),
+            'interstellar': Math.max(...interstellar_scores),
+            'powerport': Math.max(...powerport_scores)
         });
 
         for (var i = 0; i < formatted_scores.length; i++) {
