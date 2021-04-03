@@ -239,8 +239,21 @@ async function updateData(replaceChange) {
             return compare;
         });
 
+        var scores = db.collection('scores');
+
         for (var i = 0; i < formatted_scores.length; i++) {
             formatted_scores[i].rank_5 = i + 1;
+            let change_5 = 0;
+            var doc = scores.doc(formatted_scores[i].team);
+            var docData = await doc.get();
+            if (docData.exists) {
+                change_5 = docData.data()['rank_5'] - (i + 1);
+                if (!replaceChange) {
+                    const prevChange5 = docData.data()['change_5'];
+                    change_5 += prevChange5;
+                }
+            }
+            formatted_scores[i].change_5 = change_5;
         }
 
         formatted_scores.sort((a, b) => {
@@ -263,7 +276,6 @@ async function updateData(replaceChange) {
             return compare;
         });
 
-        var scores = db.collection('scores');
         var cheese = db.collection('cheese');
 
         var batch = db.batch();
@@ -280,16 +292,12 @@ async function updateData(replaceChange) {
             const score = formatted_scores[i];
             var doc = scores.doc(score.team);
             let change = 0;
-            let change_5 = 0;
             var docData = await doc.get();
             if (docData.exists) {
                 change = docData.data()['rank'] - (i + 1);
-                change_5 = docData.data()['rank_5'] - (i + 1);
                 if (!replaceChange) {
                     const prevChange = docData.data()['change'];
-                    const prevChange5 = docData.data()['change_5'];
                     change += prevChange;
-                    change_5 += prevChange5;
                 }
             }
 
@@ -302,7 +310,7 @@ async function updateData(replaceChange) {
                 'rank': i + 1,
                 'rank_5': score.rank_5,
                 'change': change,
-                'change_5': change_5,
+                'change_5': score.change_5,
                 'team_rank': score.team_rank,
                 'galactic_rank': score.galactic_rank,
                 'auto_rank': score.auto_rank,
