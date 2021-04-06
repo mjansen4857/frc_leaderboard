@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:frc_leaderboard/services/database.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum RankMode { best3, overall }
@@ -9,8 +9,9 @@ enum ScoreMode { rawScore, computedScore, rank }
 
 class LeaderboardPage extends StatefulWidget {
   final Database db;
+  final FirebaseAnalytics analytics;
 
-  LeaderboardPage({Key key, this.db}) : super(key: key);
+  LeaderboardPage({Key key, this.db, this.analytics}) : super(key: key);
 
   @override
   _LeaderboardPageState createState() => _LeaderboardPageState();
@@ -34,34 +35,24 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   String _searchKey;
   RankMode _rankMode = RankMode.best3;
   ScoreMode _scoreMode = ScoreMode.rawScore;
-  SharedPreferences _prefs;
 
   @override
   void initState() {
     super.initState();
-    SharedPreferences.getInstance().then((val) {
-      _prefs = val;
-      String savedRankMode = _prefs.getString('rankMode');
-      widget.db.getVideoDocs().then((vidSnap) {
-        _vidSnapshot = vidSnap;
-        widget.db.getHighScores().then((highScores) {
-          _bestGalactic = highScores['galactic_search'];
-          _bestAuto = highScores['auto_nav'];
-          _bestHyper = highScores['hyperdrive'];
-          _bestInter = highScores['interstellar'];
-          _bestPower = highScores['powerport'];
+    widget.analytics.logAppOpen();
+    widget.db.getVideoDocs().then((vidSnap) {
+      _vidSnapshot = vidSnap;
+      widget.db.getHighScores().then((highScores) {
+        _bestGalactic = highScores['galactic_search'];
+        _bestAuto = highScores['auto_nav'];
+        _bestHyper = highScores['hyperdrive'];
+        _bestInter = highScores['interstellar'];
+        _bestPower = highScores['powerport'];
 
-          _startRow = 1;
-          _paginated = true;
-          if (savedRankMode == 'RankMode.best3' || savedRankMode == null) {
-            _rankMode = RankMode.best3;
-            _currentSortKey = 'rank';
-          } else {
-            _rankMode = RankMode.overall;
-            _currentSortKey = 'rank_5';
-          }
-          getPaginatedTableData();
-        });
+        _startRow = 1;
+        _paginated = true;
+        _currentSortKey = 'rank';
+        getPaginatedTableData();
       });
     });
   }
@@ -113,9 +104,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 value: RankMode.best3,
                 groupValue: _rankMode,
                 onChanged: (RankMode mode) {
+                  widget.analytics.logSelectContent(
+                      contentType: 'Rank Mode', itemId: 'Best 3');
                   setState(() {
                     _rankMode = mode;
-                    _prefs.setString('rankMode', mode.toString());
                     if (_currentSortKey == 'rank_5') {
                       _isLoading = true;
                       _currentSortKey = 'rank';
@@ -130,9 +122,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 value: RankMode.overall,
                 groupValue: _rankMode,
                 onChanged: (RankMode mode) {
+                  widget.analytics.logSelectContent(
+                      contentType: 'Rank Mode', itemId: 'Overall');
                   setState(() {
                     _rankMode = mode;
-                    _prefs.setString('rankMode', mode.toString());
                     if (_currentSortKey == 'rank') {
                       _isLoading = true;
                       _currentSortKey = 'rank_5';
@@ -151,6 +144,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 value: ScoreMode.rawScore,
                 groupValue: _scoreMode,
                 onChanged: (ScoreMode mode) {
+                  widget.analytics.logSelectContent(
+                      contentType: 'Score Mode', itemId: 'Raw Score');
                   setState(() {
                     _scoreMode = mode;
                   });
@@ -161,6 +156,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 value: ScoreMode.computedScore,
                 groupValue: _scoreMode,
                 onChanged: (ScoreMode mode) {
+                  widget.analytics.logSelectContent(
+                      contentType: 'Score Mode', itemId: 'Computed Score');
                   setState(() {
                     _scoreMode = mode;
                   });
@@ -171,6 +168,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 value: ScoreMode.rank,
                 groupValue: _scoreMode,
                 onChanged: (ScoreMode mode) {
+                  widget.analytics.logSelectContent(
+                      contentType: 'Score Mode', itemId: 'Rank');
                   setState(() {
                     _scoreMode = mode;
                   });
@@ -473,6 +472,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 ),
               ),
               onSubmitted: (String search) {
+                widget.analytics.logSearch(searchTerm: search);
                 setState(() {
                   _scores = [];
                   _sortCol = 0;
@@ -499,6 +499,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 ? null
                 : () {
                     setState(() {
+                      widget.analytics.logEvent(name: 'previous_page');
                       _isLoading = true;
                       _startRow -= 50;
                       _scores = [];
@@ -514,6 +515,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 ? null
                 : () {
                     setState(() {
+                      widget.analytics.logEvent(name: 'next_page');
                       _isLoading = true;
                       _startRow += 50;
                       _scores = [];
@@ -684,6 +686,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                   child: Text(score['team'].toString()),
                   onPressed: () async {
                     if (await canLaunch(score['reveal_vid'])) {
+                      widget.analytics.logEvent(
+                          name: 'launch_link',
+                          parameters: {
+                            'team': score['team'],
+                            'link_type': 'reveal'
+                          });
                       await launch(score['reveal_vid']);
                     }
                   },
@@ -695,6 +703,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 child: TextButton(
                   child: galacticText,
                   onPressed: () async {
+                    widget.analytics.logEvent(name: 'launch_link', parameters: {
+                      'team': score['team'],
+                      'link_type': 'galactic'
+                    });
                     if (await canLaunch(score['galactic_search_vid'])) {
                       await launch(score['galactic_search_vid']);
                     }
@@ -707,6 +719,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 child: TextButton(
                   child: autoNavText,
                   onPressed: () async {
+                    widget.analytics.logEvent(name: 'launch_link', parameters: {
+                      'team': score['team'],
+                      'link_type': 'auto-nav'
+                    });
                     if (await canLaunch(score['auto_nav_vid'])) {
                       await launch(score['auto_nav_vid']);
                     }
@@ -719,6 +735,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 child: TextButton(
                   child: hyperdriveText,
                   onPressed: () async {
+                    widget.analytics.logEvent(name: 'launch_link', parameters: {
+                      'team': score['team'],
+                      'link_type': 'hyperdrive'
+                    });
                     if (await canLaunch(score['hyperdrive_vid'])) {
                       await launch(score['hyperdrive_vid']);
                     }
@@ -731,6 +751,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 child: TextButton(
                   child: interstellarText,
                   onPressed: () async {
+                    widget.analytics.logEvent(name: 'launch_link', parameters: {
+                      'team': score['team'],
+                      'link_type': 'interstellar'
+                    });
                     if (await canLaunch(score['interstellar_vid'])) {
                       await launch(score['interstellar_vid']);
                     }
@@ -743,6 +767,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 child: TextButton(
                   child: powerportText,
                   onPressed: () async {
+                    widget.analytics.logEvent(name: 'launch_link', parameters: {
+                      'team': score['team'],
+                      'link_type': 'powerport'
+                    });
                     if (await canLaunch(score['powerport_vid'])) {
                       await launch(score['powerport_vid']);
                     }
@@ -812,6 +840,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               child: Text('Global Rank'),
                             ),
                             onSort: (columnIndex, sortAscending) {
+                              widget.analytics.logEvent(
+                                  name: 'sort_col',
+                                  parameters: {'col': 'rank'});
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
@@ -834,6 +865,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               child: Text('Team Number'),
                             ),
                             onSort: (columnIndex, sortAscending) {
+                              widget.analytics.logEvent(
+                                  name: 'sort_col',
+                                  parameters: {'col': 'team'});
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
@@ -856,6 +890,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               child: Text('Galactic Search'),
                             ),
                             onSort: (columnIndex, sortAscending) {
+                              widget.analytics.logEvent(
+                                  name: 'sort_col',
+                                  parameters: {'col': 'galactic'});
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
@@ -878,6 +915,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               child: Text('Auto-Nav'),
                             ),
                             onSort: (columnIndex, sortAscending) {
+                              widget.analytics.logEvent(
+                                  name: 'sort_col',
+                                  parameters: {'col': 'auto-nav'});
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
@@ -900,6 +940,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               child: Text('Hyperdrive'),
                             ),
                             onSort: (columnIndex, sortAscending) {
+                              widget.analytics.logEvent(
+                                  name: 'sort_col',
+                                  parameters: {'col': 'hyperdrive'});
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
@@ -922,6 +965,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               child: Text('Interstellar Accuracy'),
                             ),
                             onSort: (columnIndex, sortAscending) {
+                              widget.analytics.logEvent(
+                                  name: 'sort_col',
+                                  parameters: {'col': 'interstellar'});
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;
@@ -945,6 +991,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               child: Text('Power Port'),
                             ),
                             onSort: (columnIndex, sortAscending) {
+                              widget.analytics.logEvent(
+                                  name: 'sort_col',
+                                  parameters: {'col': 'powerport'});
                               setState(() {
                                 _sortCol = columnIndex;
                                 _sortAscending = sortAscending;

@@ -1,3 +1,4 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:frc_leaderboard/pages/leaderboard_page.dart';
 import 'package:frc_leaderboard/services/database.dart';
@@ -23,6 +24,7 @@ class Leaderboard extends StatelessWidget {
       themeMode: ThemeMode.dark,
       home: LeaderboardPage(
         db: Database(),
+        analytics: FirebaseAnalytics(),
       ),
     );
   }
