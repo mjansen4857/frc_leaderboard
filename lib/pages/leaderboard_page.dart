@@ -19,6 +19,7 @@ class LeaderboardPage extends StatefulWidget {
 
 class _LeaderboardPageState extends State<LeaderboardPage> {
   var _scores = [];
+  var _fixedScores = [];
   bool _isLoading = true;
   int _sortCol = 0;
   bool _sortAscending = true;
@@ -59,150 +60,167 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: Image(
-                image: AssetImage('images/logo.png'),
-                width: 60,
-              ),
-            ),
-            Text('IRH Leaderboard'),
-          ],
-        ),
-        backgroundColor: Colors.indigo,
-      ),
-      body: Stack(
-        children: [
-          showLoading(),
-          buildTable(),
-        ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          children: [
-            DrawerHeader(
-              child: Text(''),
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                image: DecorationImage(
-                  image: AssetImage('images/ir_logo2.png'),
-                  fit: BoxFit.fitHeight,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: Image(
+                  image: AssetImage('images/logo.png'),
+                  width: 60,
                 ),
               ),
-            ),
-            ListTile(
-              title: Text('Rank Mode'),
-            ),
-            RadioListTile(
-                title: Text('Best 3 Scores'),
-                activeColor: Colors.indigoAccent,
-                value: RankMode.best3,
-                groupValue: _rankMode,
-                onChanged: (RankMode mode) {
-                  widget.analytics.logSelectContent(
-                      contentType: 'Rank Mode', itemId: 'Best 3');
-                  setState(() {
-                    _rankMode = mode;
-                    if (_currentSortKey == 'rank_5') {
-                      _isLoading = true;
-                      _currentSortKey = 'rank';
-                      _scores = [];
-                      getPaginatedTableData(descending: !_sortAscending);
-                    }
-                  });
-                }),
-            RadioListTile(
-                title: Text('Overall Performance'),
-                activeColor: Colors.indigoAccent,
-                value: RankMode.overall,
-                groupValue: _rankMode,
-                onChanged: (RankMode mode) {
-                  widget.analytics.logSelectContent(
-                      contentType: 'Rank Mode', itemId: 'Overall');
-                  setState(() {
-                    _rankMode = mode;
-                    if (_currentSortKey == 'rank') {
-                      _isLoading = true;
-                      _currentSortKey = 'rank_5';
-                      _scores = [];
-                      getPaginatedTableData(descending: !_sortAscending);
-                    }
-                  });
-                }),
-            Divider(),
-            ListTile(
-              title: Text('Score Display Mode'),
-            ),
-            RadioListTile(
-                title: Text('Raw Score'),
-                activeColor: Colors.indigoAccent,
-                value: ScoreMode.rawScore,
-                groupValue: _scoreMode,
-                onChanged: (ScoreMode mode) {
-                  widget.analytics.logSelectContent(
-                      contentType: 'Score Mode', itemId: 'Raw Score');
-                  setState(() {
-                    _scoreMode = mode;
-                  });
-                }),
-            RadioListTile(
-                title: Text('Computed Score'),
-                activeColor: Colors.indigoAccent,
-                value: ScoreMode.computedScore,
-                groupValue: _scoreMode,
-                onChanged: (ScoreMode mode) {
-                  widget.analytics.logSelectContent(
-                      contentType: 'Score Mode', itemId: 'Computed Score');
-                  setState(() {
-                    _scoreMode = mode;
-                  });
-                }),
-            RadioListTile(
-                title: Text('Challenge Rank'),
-                activeColor: Colors.indigoAccent,
-                value: ScoreMode.rank,
-                groupValue: _scoreMode,
-                onChanged: (ScoreMode mode) {
-                  widget.analytics.logSelectContent(
-                      contentType: 'Score Mode', itemId: 'Rank');
-                  setState(() {
-                    _scoreMode = mode;
-                  });
-                }),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8.0, 12, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              buildTeamSearch(),
-              Visibility(
-                child: buildPageButtons(),
-                visible: _paginated,
+              Text('IRH Leaderboard'),
+            ],
+          ),
+          backgroundColor: Colors.indigo,
+          bottom: TabBar(
+            tabs: [
+              Tab(
+                text: 'Game Manual Scoring',
               ),
-              SizedBox(
-                width: 205,
+              Tab(
+                text: 'Fixed Scoring',
               ),
             ],
+          ),
+        ),
+        body: Stack(
+          children: [
+            showLoading(),
+            TabBarView(
+              children: [buildTable(false), buildTable(true)],
+            ),
+          ],
+        ),
+        drawer: Drawer(
+          child: ListView(
+            children: [
+              DrawerHeader(
+                child: Text(''),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  image: DecorationImage(
+                    image: AssetImage('images/ir_logo2.png'),
+                    fit: BoxFit.fitHeight,
+                  ),
+                ),
+              ),
+              ListTile(
+                title: Text('Rank Mode'),
+              ),
+              RadioListTile(
+                  title: Text('Best 3 Scores'),
+                  activeColor: Colors.indigoAccent,
+                  value: RankMode.best3,
+                  groupValue: _rankMode,
+                  onChanged: (RankMode mode) {
+                    widget.analytics.logSelectContent(
+                        contentType: 'Rank Mode', itemId: 'Best 3');
+                    setState(() {
+                      _rankMode = mode;
+                      if (_currentSortKey == 'rank_5') {
+                        _isLoading = true;
+                        _currentSortKey = 'rank';
+                        _scores = [];
+                        _fixedScores = [];
+                        getPaginatedTableData(descending: !_sortAscending);
+                      }
+                    });
+                  }),
+              RadioListTile(
+                  title: Text('Overall Performance'),
+                  activeColor: Colors.indigoAccent,
+                  value: RankMode.overall,
+                  groupValue: _rankMode,
+                  onChanged: (RankMode mode) {
+                    widget.analytics.logSelectContent(
+                        contentType: 'Rank Mode', itemId: 'Overall');
+                    setState(() {
+                      _rankMode = mode;
+                      if (_currentSortKey == 'rank') {
+                        _isLoading = true;
+                        _currentSortKey = 'rank_5';
+                        _scores = [];
+                        _fixedScores = [];
+                        getPaginatedTableData(descending: !_sortAscending);
+                      }
+                    });
+                  }),
+              Divider(),
+              ListTile(
+                title: Text('Score Display Mode'),
+              ),
+              RadioListTile(
+                  title: Text('Raw Score'),
+                  activeColor: Colors.indigoAccent,
+                  value: ScoreMode.rawScore,
+                  groupValue: _scoreMode,
+                  onChanged: (ScoreMode mode) {
+                    widget.analytics.logSelectContent(
+                        contentType: 'Score Mode', itemId: 'Raw Score');
+                    setState(() {
+                      _scoreMode = mode;
+                    });
+                  }),
+              RadioListTile(
+                  title: Text('Computed Score'),
+                  activeColor: Colors.indigoAccent,
+                  value: ScoreMode.computedScore,
+                  groupValue: _scoreMode,
+                  onChanged: (ScoreMode mode) {
+                    widget.analytics.logSelectContent(
+                        contentType: 'Score Mode', itemId: 'Computed Score');
+                    setState(() {
+                      _scoreMode = mode;
+                    });
+                  }),
+              RadioListTile(
+                  title: Text('Challenge Rank'),
+                  activeColor: Colors.indigoAccent,
+                  value: ScoreMode.rank,
+                  groupValue: _scoreMode,
+                  onChanged: (ScoreMode mode) {
+                    widget.analytics.logSelectContent(
+                        contentType: 'Score Mode', itemId: 'Rank');
+                    setState(() {
+                      _scoreMode = mode;
+                    });
+                  }),
+            ],
+          ),
+        ),
+        bottomNavigationBar: BottomAppBar(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8.0, 12, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                buildTeamSearch(),
+                Visibility(
+                  child: buildPageButtons(),
+                  visible: _paginated,
+                ),
+                SizedBox(
+                  width: 205,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  String getRankKey() {
+  String getRankKey(bool fixed) {
     if (_rankMode == RankMode.best3) {
-      return 'rank';
+      return fixed ? 'rank_fixed' : 'rank';
     } else {
-      return 'rank_5';
+      return fixed ? 'rank_5_fixed' : 'rank_5';
     }
   }
 
@@ -214,74 +232,82 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     }
   }
 
+  Map<String, dynamic> getScoresFromDoc(DocumentSnapshot doc) {
+    int team = int.parse(doc.id);
+
+    var revealVid;
+    var galacticVid;
+    var autoNavVid;
+    var hyperdriveVid;
+    var interstellarVid;
+    var powerportVid;
+
+    for (var vidDoc in _vidSnapshot.docs) {
+      if (int.parse(vidDoc.id) == team) {
+        var vidData = vidDoc.data();
+        revealVid = vidData['reveal'];
+        galacticVid = vidData['galactic_search'];
+        autoNavVid = vidData['auto_nav'];
+        hyperdriveVid = vidData['hyperdrive'];
+        interstellarVid = vidData['interstellar'];
+        powerportVid = vidData['powerport'];
+
+        break;
+      }
+    }
+
+    var docData = doc.data();
+
+    return {
+      'team': team,
+      'rank': docData['rank'],
+      'rank_fixed': docData['rank_fixed'],
+      'rank_5': docData['rank_5'],
+      'rank_5_fixed': docData['rank_5_fixed'],
+      'change': docData['change'],
+      'change_5': docData['change_5'],
+      'galactic_search': docData['galactic_search'],
+      'computed_galactic': docData['computed_galactic'],
+      'computed_galactic_fixed': docData['computed_galactic_fixed'],
+      'galactic_rank': docData['galactic_rank'],
+      'auto_nav': docData['auto_nav'],
+      'computed_auto': docData['computed_auto'],
+      'computed_auto_fixed': docData['computed_auto_fixed'],
+      'auto_rank': docData['auto_rank'],
+      'hyperdrive': docData['hyperdrive'],
+      'computed_hyperdrive': docData['computed_hyperdrive'],
+      'computed_hyperdrive_fixed': docData['computed_hyperdrive_fixed'],
+      'hyper_rank': docData['hyper_rank'],
+      'interstellar': docData['interstellar'],
+      'computed_interstellar': docData['computed_interstellar'],
+      'computed_interstellar_fixed': docData['computed_interstellar_fixed'],
+      'inter_rank': docData['inter_rank'],
+      'powerport': docData['powerport'],
+      'computed_powerport': docData['computed_powerport'],
+      'computed_powerport_fixed': docData['computed_powerport_fixed'],
+      'power_rank': docData['power_rank'],
+      'reveal_vid': revealVid,
+      'galactic_search_vid': galacticVid,
+      'auto_nav_vid': autoNavVid,
+      'hyperdrive_vid': hyperdriveVid,
+      'interstellar_vid': interstellarVid,
+      'powerport_vid': powerportVid
+    };
+  }
+
   void getSearchTableData(String searchKey, {bool descending = false}) {
     if (int.tryParse(searchKey) != null) {
       widget.db.getSingleTeamDoc(searchKey).then((doc) {
         var scores = [];
 
         if (doc.exists) {
-          int team = int.parse(doc.id);
-          int rank = doc.data()['rank'];
-          double galactic_search = doc.data()['galactic_search'];
-          double auto_nav = doc.data()['auto_nav'];
-          double hyperdrive = doc.data()['hyperdrive'];
-          double interstellar = doc.data()['interstellar'];
-          double powerport = doc.data()['powerport'];
-          int change = doc.data()['change'];
-
-          var revealVid;
-          var galacticVid;
-          var autoNavVid;
-          var hyperdriveVid;
-          var interstellarVid;
-          var powerportVid;
-
-          for (var vidDoc in _vidSnapshot.docs) {
-            if (int.parse(vidDoc.id) == team) {
-              revealVid = vidDoc.data()['reveal'];
-              galacticVid = vidDoc.data()['galactic_search'];
-              autoNavVid = vidDoc.data()['auto_nav'];
-              hyperdriveVid = vidDoc.data()['hyperdrive'];
-              interstellarVid = vidDoc.data()['interstellar'];
-              powerportVid = vidDoc.data()['powerport'];
-
-              break;
-            }
-          }
-
-          scores.add({
-            'team': team,
-            'rank': rank,
-            'rank_5': doc.data()['rank_5'],
-            'change': change,
-            'change_5': doc.data()['change_5'],
-            'galactic_search': galactic_search,
-            'computed_galactic': doc.data()['computed_galactic'],
-            'galactic_rank': doc.data()['galactic_rank'],
-            'auto_nav': auto_nav,
-            'computed_auto': doc.data()['computed_auto'],
-            'auto_rank': doc.data()['auto_rank'],
-            'hyperdrive': hyperdrive,
-            'computed_hyperdrive': doc.data()['computed_hyperdrive'],
-            'hyper_rank': doc.data()['hyper_rank'],
-            'interstellar': interstellar,
-            'computed_interstellar': doc.data()['computed_interstellar'],
-            'inter_rank': doc.data()['inter_rank'],
-            'powerport': powerport,
-            'computed_powerport': doc.data()['computed_powerport'],
-            'power_rank': doc.data()['power_rank'],
-            'reveal_vid': revealVid,
-            'galactic_search_vid': galacticVid,
-            'auto_nav_vid': autoNavVid,
-            'hyperdrive_vid': hyperdriveVid,
-            'interstellar_vid': interstellarVid,
-            'powerport_vid': powerportVid
-          });
+          scores.add(getScoresFromDoc(doc));
         }
 
         setState(() {
           _isLoading = false;
           _scores = scores;
+          _fixedScores = scores;
           _paginated = false;
         });
       });
@@ -292,75 +318,42 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
         var scores = [];
 
         for (var doc in querySnapshot.docs) {
-          int team = int.parse(doc.id);
-          int rank = doc.data()['rank'];
-          double galactic_search = doc.data()['galactic_search'];
-          double auto_nav = doc.data()['auto_nav'];
-          double hyperdrive = doc.data()['hyperdrive'];
-          double interstellar = doc.data()['interstellar'];
-          double powerport = doc.data()['powerport'];
-          int change = doc.data()['change'];
-
-          var revealVid;
-          var galacticVid;
-          var autoNavVid;
-          var hyperdriveVid;
-          var interstellarVid;
-          var powerportVid;
-
-          for (var vidDoc in _vidSnapshot.docs) {
-            if (int.parse(vidDoc.id) == team) {
-              revealVid = vidDoc.data()['reveal'];
-              galacticVid = vidDoc.data()['galactic_search'];
-              autoNavVid = vidDoc.data()['auto_nav'];
-              hyperdriveVid = vidDoc.data()['hyperdrive'];
-              interstellarVid = vidDoc.data()['interstellar'];
-              powerportVid = vidDoc.data()['powerport'];
-
-              break;
-            }
-          }
-
-          scores.add({
-            'team': team,
-            'rank': rank,
-            'rank_5': doc.data()['rank_5'],
-            'change': change,
-            'change_5': doc.data()['change_5'],
-            'galactic_search': galactic_search,
-            'computed_galactic': doc.data()['computed_galactic'],
-            'galactic_rank': doc.data()['galactic_rank'],
-            'auto_nav': auto_nav,
-            'computed_auto': doc.data()['computed_auto'],
-            'auto_rank': doc.data()['auto_rank'],
-            'hyperdrive': hyperdrive,
-            'computed_hyperdrive': doc.data()['computed_hyperdrive'],
-            'hyper_rank': doc.data()['hyper_rank'],
-            'interstellar': interstellar,
-            'computed_interstellar': doc.data()['computed_interstellar'],
-            'inter_rank': doc.data()['inter_rank'],
-            'powerport': powerport,
-            'computed_powerport': doc.data()['computed_powerport'],
-            'power_rank': doc.data()['power_rank'],
-            'reveal_vid': revealVid,
-            'galactic_search_vid': galacticVid,
-            'auto_nav_vid': autoNavVid,
-            'hyperdrive_vid': hyperdriveVid,
-            'interstellar_vid': interstellarVid,
-            'powerport_vid': powerportVid
-          });
+          scores.add(getScoresFromDoc(doc));
         }
 
-        setState(() {
-          _isLoading = false;
-          _scores = scores;
-          _paginated = false;
-        });
+        var fixedScores = [];
+
+        if (_currentSortKey == 'rank' || _currentSortKey == 'rank_5') {
+          widget.db
+              .getGroupDocs(searchKey, _currentSortKey + '_fixed',
+                  descending: descending)
+              .then((fixedQuerySnap) {
+            for (var doc in fixedQuerySnap.docs) {
+              fixedScores.add(getScoresFromDoc(doc));
+            }
+            setState(() {
+              _isLoading = false;
+              _scores = scores;
+              _fixedScores = fixedScores;
+              _paginated = false;
+            });
+          });
+        } else {
+          fixedScores = scores;
+          setState(() {
+            _isLoading = false;
+            _scores = scores;
+            _fixedScores = fixedScores;
+            _paginated = false;
+          });
+        }
       });
     }
   }
 
   void getPaginatedTableData({bool descending = false}) {
+    // if(sortKey == 'rank' && fixed) sortKey = 'rank_fixed';
+    // if(sortKey == 'rank_5' && fixed) sortKey = 'rank_5_fixed';
     widget.db
         .getPaginatedDocs(_currentSortKey, _startRow, _rowsPerPage,
             descending: descending)
@@ -368,70 +361,36 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       var scores = [];
 
       for (var doc in querySnapshot.docs) {
-        int team = int.parse(doc.id);
-        int rank = doc.data()['rank'];
-        double galactic_search = doc.data()['galactic_search'];
-        double auto_nav = doc.data()['auto_nav'];
-        double hyperdrive = doc.data()['hyperdrive'];
-        double interstellar = doc.data()['interstellar'];
-        double powerport = doc.data()['powerport'];
-        int change = doc.data()['change'];
-
-        var revealVid;
-        var galacticVid;
-        var autoNavVid;
-        var hyperdriveVid;
-        var interstellarVid;
-        var powerportVid;
-
-        for (var vidDoc in _vidSnapshot.docs) {
-          if (int.parse(vidDoc.id) == team) {
-            revealVid = vidDoc.data()['reveal'];
-            galacticVid = vidDoc.data()['galactic_search'];
-            autoNavVid = vidDoc.data()['auto_nav'];
-            hyperdriveVid = vidDoc.data()['hyperdrive'];
-            interstellarVid = vidDoc.data()['interstellar'];
-            powerportVid = vidDoc.data()['powerport'];
-
-            break;
-          }
-        }
-
-        scores.add({
-          'team': team,
-          'rank': rank,
-          'rank_5': doc.data()['rank_5'],
-          'change': change,
-          'change_5': doc.data()['change_5'],
-          'galactic_search': galactic_search,
-          'computed_galactic': doc.data()['computed_galactic'],
-          'galactic_rank': doc.data()['galactic_rank'],
-          'auto_nav': auto_nav,
-          'computed_auto': doc.data()['computed_auto'],
-          'auto_rank': doc.data()['auto_rank'],
-          'hyperdrive': hyperdrive,
-          'computed_hyperdrive': doc.data()['computed_hyperdrive'],
-          'hyper_rank': doc.data()['hyper_rank'],
-          'interstellar': interstellar,
-          'computed_interstellar': doc.data()['computed_interstellar'],
-          'inter_rank': doc.data()['inter_rank'],
-          'powerport': powerport,
-          'computed_powerport': doc.data()['computed_powerport'],
-          'power_rank': doc.data()['power_rank'],
-          'reveal_vid': revealVid,
-          'galactic_search_vid': galacticVid,
-          'auto_nav_vid': autoNavVid,
-          'hyperdrive_vid': hyperdriveVid,
-          'interstellar_vid': interstellarVid,
-          'powerport_vid': powerportVid
-        });
+        scores.add(getScoresFromDoc(doc));
       }
 
-      setState(() {
-        _isLoading = false;
-        _scores = scores;
-        _paginated = true;
-      });
+      var fixedScores = [];
+
+      if (_currentSortKey == 'rank' || _currentSortKey == 'rank_5') {
+        widget.db
+            .getPaginatedDocs(
+                _currentSortKey + '_fixed', _startRow, _rowsPerPage,
+                descending: descending)
+            .then((fixedQuerySnap) async {
+          for (var doc in fixedQuerySnap.docs) {
+            fixedScores.add(getScoresFromDoc(doc));
+          }
+          setState(() {
+            _isLoading = false;
+            _scores = scores;
+            _fixedScores = fixedScores;
+            _paginated = true;
+          });
+        });
+      } else {
+        fixedScores = scores;
+        setState(() {
+          _isLoading = false;
+          _scores = scores;
+          _fixedScores = fixedScores;
+          _paginated = true;
+        });
+      }
     });
   }
 
@@ -448,10 +407,11 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 onPressed: () {
                   setState(() {
                     _scores = [];
+                    _fixedScores = [];
                     _sortCol = 0;
                     _sortAscending = true;
                     _searchKey = null;
-                    _currentSortKey = getRankKey();
+                    _currentSortKey = getRankKey(false);
                     _isLoading = true;
                     getPaginatedTableData();
                   });
@@ -475,6 +435,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 widget.analytics.logSearch(searchTerm: search);
                 setState(() {
                   _scores = [];
+                  _fixedScores = [];
                   _sortCol = 0;
                   _sortAscending = true;
                   _isLoading = true;
@@ -503,6 +464,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                       _isLoading = true;
                       _startRow -= 50;
                       _scores = [];
+                      _fixedScores = [];
                       getPaginatedTableData(descending: !_sortAscending);
                     });
                   }),
@@ -519,6 +481,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                       _isLoading = true;
                       _startRow += 50;
                       _scores = [];
+                      _fixedScores = [];
                       getPaginatedTableData(descending: !_sortAscending);
                     });
                   }),
@@ -610,76 +573,87 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     }
   }
 
-  double getGalacticValue(var score) {
+  double getGalacticValue(var score, bool fixed) {
     if (_scoreMode == ScoreMode.rank) {
       return score['galactic_rank'];
     } else if (_scoreMode == ScoreMode.computedScore) {
-      return score['computed_galactic'];
+      return fixed
+          ? score['computed_galactic_fixed']
+          : score['computed_galactic'];
     } else {
       return score['galactic_search'];
     }
   }
 
-  double getAutoValue(var score) {
+  double getAutoValue(var score, bool fixed) {
     if (_scoreMode == ScoreMode.rank) {
       return score['auto_rank'];
     } else if (_scoreMode == ScoreMode.computedScore) {
-      return score['computed_auto'];
+      return fixed ? score['computed_auto_fixed'] : score['computed_auto'];
     } else {
       return score['auto_nav'];
     }
   }
 
-  double getHyperdriveValue(var score) {
+  double getHyperdriveValue(var score, bool fixed) {
     if (_scoreMode == ScoreMode.rank) {
       return score['hyper_rank'];
     } else if (_scoreMode == ScoreMode.computedScore) {
-      return score['computed_hyperdrive'];
+      return fixed
+          ? score['computed_hyperdrive_fixed']
+          : score['computed_hyperdrive'];
     } else {
       return score['hyperdrive'];
     }
   }
 
-  double getInterstellarValue(var score) {
+  double getInterstellarValue(var score, bool fixed) {
     if (_scoreMode == ScoreMode.rank) {
       return score['inter_rank'];
     } else if (_scoreMode == ScoreMode.computedScore) {
-      return score['computed_interstellar'];
+      return fixed
+          ? score['computed_interstellar_fixed']
+          : score['computed_interstellar'];
     } else {
       return score['interstellar'];
     }
   }
 
-  double getPowerportValue(var score) {
+  double getPowerportValue(var score, bool fixed) {
     if (_scoreMode == ScoreMode.rank) {
       return score['power_rank'];
     } else if (_scoreMode == ScoreMode.computedScore) {
-      return score['computed_powerport'];
+      return fixed
+          ? score['computed_powerport_fixed']
+          : score['computed_powerport'];
     } else {
       return score['powerport'];
     }
   }
 
-  List<DataRow> getDataRows() {
+  List<DataRow> getDataRows(bool fixed) {
     List<DataRow> rows = [];
-    for (var score in _scores) {
+    var scores = fixed ? _fixedScores : _scores;
+    for (var score in scores) {
       var galacticText = getScoreLabel(
-          getGalacticValue(score),
+          getGalacticValue(score, fixed),
           score['galactic_search'] == _bestGalactic,
           score['galactic_search_vid'] != null);
-      var autoNavText = getScoreLabel(getAutoValue(score),
+      var autoNavText = getScoreLabel(getAutoValue(score, fixed),
           score['auto_nav'] == _bestAuto, score['auto_nav_vid'] != null);
-      var hyperdriveText = getScoreLabel(getHyperdriveValue(score),
+      var hyperdriveText = getScoreLabel(getHyperdriveValue(score, fixed),
           score['hyperdrive'] == _bestHyper, score['hyperdrive_vid'] != null);
       var interstellarText = getScoreLabel(
-          getInterstellarValue(score),
+          getInterstellarValue(score, fixed),
           score['interstellar'] == _bestInter,
           score['interstellar_vid'] != null);
-      var powerportText = getScoreLabel(getPowerportValue(score),
+      var powerportText = getScoreLabel(getPowerportValue(score, fixed),
           score['powerport'] == _bestPower, score['powerport_vid'] != null);
 
+      var change = score[getRankKey(false)] - score[getRankKey(fixed)];
+
       rows.add(DataRow(cells: <DataCell>[
-        DataCell(getRankWidget(score[getRankKey()], score[getChangeKey()])),
+        DataCell(getRankWidget(score[getRankKey(fixed)], change)),
         DataCell(score['reveal_vid'] != null
             ? Center(
                 child: TextButton(
@@ -783,9 +757,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
     return rows;
   }
 
-  Widget buildTable() {
+  Widget buildTable(bool fixed) {
     return Padding(
-      padding: const EdgeInsets.only(top: 24.0),
+      padding: const EdgeInsets.only(top: 8.0),
       child: ListView(
         children: [
           Container(
@@ -794,42 +768,42 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
               scrollDirection: Axis.horizontal,
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Row(
-                      children: [
-                        RichText(
-                          text: TextSpan(
-                            style: TextStyle(color: Colors.white),
-                            children: [
-                              WidgetSpan(
-                                  child: Icon(
-                                Icons.keyboard_arrow_up,
-                                color: Colors.green,
-                                size: 16,
-                              )),
-                              TextSpan(text: '/'),
-                              WidgetSpan(
-                                  child: Icon(
-                                Icons.keyboard_arrow_down,
-                                color: Colors.red,
-                                size: 16,
-                              )),
-                              TextSpan(text: ' = Daily Change'),
-                              TextSpan(text: '      '),
-                              WidgetSpan(
-                                  child: Icon(
-                                Icons.star,
-                                color: Colors.yellow,
-                                size: 16,
-                              )),
-                              TextSpan(text: ' = High Score'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Padding(
+                  //   padding: const EdgeInsets.only(bottom: 8.0),
+                  //   child: Row(
+                  //     children: [
+                  //       RichText(
+                  //         text: TextSpan(
+                  //           style: TextStyle(color: Colors.white),
+                  //           children: [
+                  //             WidgetSpan(
+                  //                 child: Icon(
+                  //               Icons.keyboard_arrow_up,
+                  //               color: Colors.green,
+                  //               size: 16,
+                  //             )),
+                  //             TextSpan(text: '/'),
+                  //             WidgetSpan(
+                  //                 child: Icon(
+                  //               Icons.keyboard_arrow_down,
+                  //               color: Colors.red,
+                  //               size: 16,
+                  //             )),
+                  //             TextSpan(text: ' = Daily Change'),
+                  //             TextSpan(text: '      '),
+                  //             WidgetSpan(
+                  //                 child: Icon(
+                  //               Icons.star,
+                  //               color: Colors.yellow,
+                  //               size: 16,
+                  //             )),
+                  //             TextSpan(text: ' = High Score'),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
                   DataTable(
                       sortColumnIndex: _sortCol,
                       sortAscending: _sortAscending,
@@ -848,14 +822,15 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                 _sortAscending = sortAscending;
                                 if (_searchKey == null) {
                                   _scores = [];
+                                  _fixedScores = [];
                                   _isLoading = true;
                                   _startRow = 1;
-                                  _currentSortKey = getRankKey();
+                                  _currentSortKey = getRankKey(fixed);
 
                                   getPaginatedTableData(
                                       descending: !_sortAscending);
                                 } else {
-                                  sortScores(getRankKey());
+                                  sortScores(getRankKey(fixed));
                                 }
                               });
                             }),
@@ -873,6 +848,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                 _sortAscending = sortAscending;
                                 if (_searchKey == null) {
                                   _scores = [];
+                                  _fixedScores = [];
                                   _isLoading = true;
                                   _startRow = 1;
                                   _currentSortKey = 'team_rank';
@@ -898,6 +874,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                 _sortAscending = sortAscending;
                                 if (_searchKey == null) {
                                   _scores = [];
+                                  _fixedScores = [];
                                   _isLoading = true;
                                   _startRow = 1;
                                   _currentSortKey = 'galactic_rank';
@@ -923,6 +900,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                 _sortAscending = sortAscending;
                                 if (_searchKey == null) {
                                   _scores = [];
+                                  _fixedScores = [];
                                   _isLoading = true;
                                   _startRow = 1;
                                   _currentSortKey = 'auto_rank';
@@ -948,6 +926,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                 _sortAscending = sortAscending;
                                 if (_searchKey == null) {
                                   _scores = [];
+                                  _fixedScores = [];
                                   _isLoading = true;
                                   _startRow = 1;
                                   _currentSortKey = 'hyper_rank';
@@ -973,6 +952,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                 _sortAscending = sortAscending;
                                 if (_searchKey == null) {
                                   _scores = [];
+                                  _fixedScores = [];
                                   _isLoading = true;
                                   _startRow = 1;
                                   _currentSortKey = 'inter_rank';
@@ -999,6 +979,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                                 _sortAscending = sortAscending;
                                 if (_searchKey == null) {
                                   _scores = [];
+                                  _fixedScores = [];
                                   _isLoading = true;
                                   _startRow = 1;
                                   _currentSortKey = 'power_rank';
@@ -1011,7 +992,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                               });
                             }),
                       ],
-                      rows: getDataRows()),
+                      rows: getDataRows(fixed)),
                 ],
               ),
             ),
@@ -1034,9 +1015,22 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       return a[key].compareTo(b[key]);
     });
 
+    _fixedScores.sort((a, b) {
+      if (lowerIsBetter) {
+        if (a[key] == 0) {
+          return 1;
+        }
+        if (b[key] == 0) {
+          return -1;
+        }
+      }
+      return a[key].compareTo(b[key]);
+    });
+
     if ((!_sortAscending && lowerIsBetter) ||
         (_sortAscending && !lowerIsBetter)) {
       _scores = _scores.reversed.toList();
+      _fixedScores = _fixedScores.reversed.toList();
     }
   }
 }
