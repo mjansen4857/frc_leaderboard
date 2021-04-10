@@ -29,7 +29,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   double _bestInter = 0;
   double _bestPower = 0;
   int _startRow = 1;
-  int _rowsPerPage = 50;
+  int _rowsPerPage = 25;
   String _currentSortKey = 'rank';
   QuerySnapshot _vidSnapshot;
   bool _paginated = true;
@@ -462,7 +462,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                     setState(() {
                       widget.analytics.logEvent(name: 'previous_page');
                       _isLoading = true;
-                      _startRow -= 50;
+                      _startRow -= _rowsPerPage;
                       _scores = [];
                       _fixedScores = [];
                       getPaginatedTableData(descending: !_sortAscending);
@@ -473,13 +473,13 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
             (_startRow + _rowsPerPage - 1).toString()),
         IconButton(
             icon: Icon(Icons.chevron_right_rounded),
-            onPressed: _scores.length < 49 // ?
+            onPressed: _scores.length < _rowsPerPage // ?
                 ? null
                 : () {
                     setState(() {
                       widget.analytics.logEvent(name: 'next_page');
                       _isLoading = true;
-                      _startRow += 50;
+                      _startRow += _rowsPerPage;
                       _scores = [];
                       _fixedScores = [];
                       getPaginatedTableData(descending: !_sortAscending);
