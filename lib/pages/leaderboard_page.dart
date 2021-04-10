@@ -84,7 +84,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 text: 'Game Manual Scoring',
               ),
               Tab(
-                text: 'Fixed Scoring',
+                text: 'Reduced Bounding Scoring',
               ),
             ],
           ),
